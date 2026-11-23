@@ -43,9 +43,10 @@ PRODUCTION_RUN_IDS = [
     "full_pipeline_25pct_seed42",
     "full_pipeline_50pct_seed42",
     "full_pipeline_100pct_seed42",
+    "full_pipeline_raw_100pct_seed42",
 ]
 
-_RUN_ID_PATTERN = re.compile(r"^full_pipeline_(\d+)pct_seed(\d+)$")
+_RUN_ID_PATTERN = re.compile(r"^full_pipeline(?:_raw)?_(\d+)pct_seed(\d+)$")
 
 # Conservative run-ID shape for non-production runs evaluated through an
 # explicit --checkpoint-path. Rejects path traversal and empty IDs; the
