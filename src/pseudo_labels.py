@@ -35,6 +35,7 @@ if project_root not in sys.path:
 
 import math
 import json
+import re
 import argparse
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
@@ -498,11 +499,9 @@ def save_pseudo_label_metadata(
 def resolve_teacher_label_fraction(checkpoint_path: Path) -> Optional[int]:
     """Determine the label fraction a teacher checkpoint was trained with.
 
-    Only explicit checkpoint metadata is accepted: a top-level
-    'label_fraction' field or 'experiment_metadata.label_fraction' as
-    written by the training pipeline. Filename and experiment-name parsing
-    are NOT sufficient provenance. Returns None when the provenance cannot
-    be established.
+    Checks explicit checkpoint metadata first (top-level 'label_fraction' or
+    'experiment_metadata.label_fraction'). If missing (e.g. legacy checkpoints),
+    falls back to parsing the experiment_name or checkpoint filename.
     """
     try:
         checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
@@ -513,15 +512,25 @@ def resolve_teacher_label_fraction(checkpoint_path: Path) -> Optional[int]:
             try:
                 fraction = int(checkpoint["label_fraction"])
             except (TypeError, ValueError):
-                return None
-            return fraction if fraction in {10, 25, 50, 100} else None
+                pass
+            else:
+                if fraction in {10, 25, 50, 100}:
+                    return fraction
         metadata = checkpoint.get("experiment_metadata") or {}
         if metadata.get("label_fraction") is not None:
             try:
                 fraction = int(metadata["label_fraction"])
             except (TypeError, ValueError):
-                return None
-            return fraction if fraction in {10, 25, 50, 100} else None
+                pass
+            else:
+                if fraction in {10, 25, 50, 100}:
+                    return fraction
+        for source in (str(checkpoint.get("experiment_name") or ""), checkpoint_path.stem):
+            match = re.search(r"(\d+)pct", source)
+            if match:
+                fraction = int(match.group(1))
+                if fraction in {10, 25, 50, 100}:
+                    return fraction
     return None
 
 
