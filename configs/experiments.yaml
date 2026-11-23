@@ -73,6 +73,7 @@ variants:
     ssl_checkpoint: "checkpoints/ssl/ssl_encoder_best.pth"
     use_motion: false
     use_pseudo_labels: true
+    use_confidence_filter: true
     pseudo_label_config: "configs/pseudo_labels.yaml"
     freeze_encoder_epochs: 5
 
@@ -84,6 +85,7 @@ variants:
     use_motion: true
     motion_checkpoint: "checkpoints/motion/motion_model_best.pth"
     use_pseudo_labels: true
+    use_confidence_filter: true
     pseudo_label_config: "configs/pseudo_labels.yaml"
     freeze_encoder_epochs: 5
 
@@ -96,6 +98,19 @@ variants:
     use_motion: true
     motion_checkpoint: "checkpoints/motion/motion_model_best.pth"
     use_pseudo_labels: true
+    use_confidence_filter: true
+    pseudo_label_config: "configs/pseudo_labels.yaml"
+    freeze_encoder_epochs: 5
+
+  full_pipeline_raw:
+    name: "E. Full Pipeline (Unfiltered Pseudo-Labels)"
+    description: "Full proposed framework with raw/unfiltered pseudo-labels (no confidence thresholding)"
+    use_ssl_pretrained: true
+    ssl_checkpoint: "checkpoints/ssl/ssl_encoder_best.pth"
+    use_motion: true
+    motion_checkpoint: "checkpoints/motion/motion_model_best.pth"
+    use_pseudo_labels: true
+    use_confidence_filter: false
     pseudo_label_config: "configs/pseudo_labels.yaml"
     freeze_encoder_epochs: 5
 

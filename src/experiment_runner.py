@@ -117,8 +117,8 @@ class ExperimentRegistry:
 
 
 class PseudoLabelArtifactDataset(Dataset):
-    """Load confidence-filtered pseudo labels after validating their patients."""
-    def __init__(self, processed_dir: str, manifest_path: Union[str, Path], train_patients: set, transform=None):
+    """Load confidence-filtered or raw pseudo labels after validating their patients."""
+    def __init__(self, processed_dir: str, manifest_path: Union[str, Path], train_patients: set, transform=None, use_confidence_filter: bool = True):
         self.processed_dir, self.manifest_path = Path(processed_dir), Path(manifest_path)
         self.root = self.manifest_path.parent
         self.records = json.loads(self.manifest_path.read_text(encoding="utf-8"))
@@ -128,6 +128,7 @@ class PseudoLabelArtifactDataset(Dataset):
         if invalid:
             raise ValueError(f"Pseudo-label manifest contains non-training patients: {sorted(invalid)}")
         self.transform = transform
+        self.use_confidence_filter = bool(use_confidence_filter)
 
     def __len__(self) -> int:
         return len(self.records)
@@ -137,13 +138,14 @@ class PseudoLabelArtifactDataset(Dataset):
         with np.load(self.root / record["file"], allow_pickle=True) as labels:
             patient_id = str(labels["patient_id"])
             frame_idx, slice_idx = int(labels["frame_idx"]), int(labels["slice_idx"])
-            filtered = labels["filtered_pseudo_label"].astype(np.int64)
+            label_key = "filtered_pseudo_label" if self.use_confidence_filter else "raw_pseudo_label"
+            pseudo_target = labels[label_key].astype(np.int64)
         image_path = self.processed_dir / f"{patient_id}_frame{frame_idx:02d}_slice{slice_idx:02d}.npz"
         with np.load(image_path, allow_pickle=True) as image_data:
             image = image_data["image"].astype(np.float32)
         # Existing segmentation transforms operate on image/mask pairs, which
         # keeps image and pseudo target spatially aligned.
-        sample = {"image": torch.from_numpy(image).unsqueeze(0), "mask": torch.from_numpy(filtered).long()}
+        sample = {"image": torch.from_numpy(image).unsqueeze(0), "mask": torch.from_numpy(pseudo_target).long()}
         if self.transform:
             sample = self.transform(sample)
         return {"image": sample["image"], "pseudo_label": sample["mask"], "patient_id": patient_id}
@@ -201,7 +203,7 @@ def build_experiment_model(config: dict, mode: str, ssl_checkpoint: Optional[str
     return model, motion
 
 
-def load_pseudo_dataset(config: dict, label_fraction: int, train_patients: set, transform) -> PseudoLabelArtifactDataset:
+def load_pseudo_dataset(config: dict, label_fraction: int, train_patients: set, transform, use_confidence_filter: bool = True) -> PseudoLabelArtifactDataset:
     pseudo_root = Path(config["logging"].get("pseudo_labels_dir", "results/pseudo_labels")) / f"{label_fraction}pct"
     metadata_path, manifest_path = pseudo_root / "pseudo_label_metadata.json", pseudo_root / "pseudo_label_index.json"
     if not metadata_path.exists() or not manifest_path.exists():
@@ -209,7 +211,7 @@ def load_pseudo_dataset(config: dict, label_fraction: int, train_patients: set, 
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     if int(metadata.get("label_fraction", -1)) != label_fraction or not metadata.get("teacher_checkpoint"):
         raise ValueError("Pseudo-label metadata must record the requested fraction and its teacher checkpoint.")
-    return PseudoLabelArtifactDataset(config["data"]["processed_dir"], manifest_path, train_patients, transform)
+    return PseudoLabelArtifactDataset(config["data"]["processed_dir"], manifest_path, train_patients, transform, use_confidence_filter=use_confidence_filter)
 
 
 class FineTuneExperimentTrainer(Trainer):
@@ -294,8 +296,19 @@ def run_experiment(config: dict, mode: str, label_fraction: int, seed: int, devi
             raise ValueError("Motion regularization requires temporal pairs from training patients.")
         temporal_loader = DataLoader(temporal, shuffle=True, **loader_args)
     pseudo_loader = None
+    use_confidence_filter = bool(variant.get("use_confidence_filter", True))
     if variant.get("use_pseudo_labels", False):
-        pseudo_loader = DataLoader(load_pseudo_dataset(config, label_fraction, _read_patient_ids(data_cfg["subsets"][100]), get_train_transforms()), shuffle=True, **loader_args)
+        pseudo_loader = DataLoader(
+            load_pseudo_dataset(
+                config,
+                label_fraction,
+                _read_patient_ids(data_cfg["subsets"][100]),
+                get_train_transforms(),
+                use_confidence_filter=use_confidence_filter,
+            ),
+            shuffle=True,
+            **loader_args,
+        )
     run_id = run_id or f"{mode}_{label_fraction}pct_seed{seed}"
     checkpoint_dir, results_dir = Path(log_cfg["checkpoint_dir"]) / run_id, Path(log_cfg["results_dir"]) / run_id
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -311,7 +324,22 @@ def run_experiment(config: dict, mode: str, label_fraction: int, seed: int, devi
     if resume:
         validate_resume_checkpoint(resume, run_id, mode, label_fraction, allow_legacy=allow_legacy_resume)
         trainer.load_checkpoint(resume)
-    metadata = {"run_id": run_id, "mode": mode, "label_fraction": label_fraction, "seed": seed, "device": str(device), "train_patients": sorted(train_patients), "validation_patients": sorted(val_patients), "ssl_checkpoint": ssl_checkpoint or variant.get("ssl_checkpoint"), "motion_checkpoint": variant.get("motion_checkpoint"), "uses_pseudo_labels": variant.get("use_pseudo_labels", False), "pseudo_label_source": str(Path(log_cfg.get("pseudo_labels_dir", "results/pseudo_labels")) / f"{label_fraction}pct") if variant.get("use_pseudo_labels", False) else None, "robustness": {"status": "not_run", "config": config.get("robustness", {})}, "parameters": count_parameters(model)}
+    metadata = {
+        "run_id": run_id,
+        "mode": mode,
+        "label_fraction": label_fraction,
+        "seed": seed,
+        "device": str(device),
+        "train_patients": sorted(train_patients),
+        "validation_patients": sorted(val_patients),
+        "ssl_checkpoint": ssl_checkpoint or variant.get("ssl_checkpoint"),
+        "motion_checkpoint": variant.get("motion_checkpoint"),
+        "uses_pseudo_labels": variant.get("use_pseudo_labels", False),
+        "use_confidence_filter": use_confidence_filter if variant.get("use_pseudo_labels", False) else None,
+        "pseudo_label_source": str(Path(log_cfg.get("pseudo_labels_dir", "results/pseudo_labels")) / f"{label_fraction}pct") if variant.get("use_pseudo_labels", False) else None,
+        "robustness": {"status": "not_run", "config": config.get("robustness", {})},
+        "parameters": count_parameters(model),
+    }
     (results_dir / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     trainer.train(train_loader, val_loader, n_epochs=epochs, early_stopping_patience=int(opt_cfg.get("early_stopping_patience", 30)), compute_metrics_fn=compute_val_metrics_wrapper, monitor_metric="Mean_Dice")
     latest_checkpoint = checkpoint_dir / f"{run_id}_latest.pth"
@@ -324,7 +352,7 @@ def run_experiment(config: dict, mode: str, label_fraction: int, seed: int, devi
 def main() -> None:
     parser = argparse.ArgumentParser(description="Patient-isolated limited-label fine-tuning runner")
     parser.add_argument("--config", default="configs/experiments.yaml")
-    parser.add_argument("--mode", default="supervised", choices=["supervised", "ssl_finetune", "ssl_motion", "ssl_pseudo", "full_pipeline", "ssl_motion_pseudo"])
+    parser.add_argument("--mode", default="supervised", choices=["supervised", "ssl_finetune", "ssl_motion", "ssl_pseudo", "full_pipeline", "ssl_motion_pseudo", "full_pipeline_raw"])
     parser.add_argument("--label-fraction", type=int, default=100, choices=[10, 25, 50, 100])
     parser.add_argument("--device", default="auto"); parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--ssl-checkpoint", default=None); parser.add_argument("--resume", default=None)
