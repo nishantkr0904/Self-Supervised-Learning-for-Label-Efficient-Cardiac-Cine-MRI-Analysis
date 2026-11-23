@@ -1,0 +1,5 @@
+Method / Filtering Configuration,Acceptance Rate (%),Min Confidence (p_max),Max Entropy,Downstream Mean Dice,Rejection Rate (%),Description
+Raw / Unfiltered Predictions,100.0%,0.00,None,0.7898,0.0%,Direct teacher argmax without quality filtering
+Confidence Filtered (MSP >= 0.90),0.47%,0.90,None,0.7925,99.53%,Rejects uncertain background and ambiguous borders
+"Confidence & Entropy Filtered (MSP >= 0.90, H <= 0.25)",0.47%,0.90,0.25,0.7941,99.53%,Optimal dual-criterion filter (Variant D)
+Full Pipeline (+ Motion Temporal Consistency),0.47%,0.90,0.25,0.7905,99.53%,Joint motion agreement + confidence filtering

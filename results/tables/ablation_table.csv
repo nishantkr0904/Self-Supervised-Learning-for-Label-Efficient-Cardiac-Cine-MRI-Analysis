@@ -1,6 +1,6 @@
-Model Variant,Label Fraction,LV Dice,MYO Dice,RV Dice,Mean Dice,HD95 (mm),Temporal Consistency,Pseudo Acceptance Rate (%),Pseudo Dice
-A. Supervised Baseline,100%,,,,,,,,
-B. SSL Only,100%,,,,,,,,
-C. SSL + Motion,100%,,,,,,,,
-D. SSL + Pseudo-Labels,100%,,,,,,,,
-E. Full Pipeline,100%,,,,,,,,
+Variant,Baseline,SSL,Motion,Pseudo Labels,Conf Filter,Mean Dice,LV Dice,MYO Dice,RV Dice,HD95 (mm),Artifact
+A. Supervised Baseline,✓,—,—,—,—,0.8064,0.8644,0.7992,0.7554,6.23,unet_100pct_seed42_artifacts.zip
+B. SSL Only,✓,✓,—,—,—,0.7898,0.8507,0.7838,0.7348,8.42,ssl_finetune_100pct_seed42
+C. SSL + Motion,✓,✓,✓,—,—,0.7723,0.8441,0.7855,0.6871,10.34,ssl_motion_100pct_seed42
+D. SSL + Pseudo-Labels,✓,✓,—,✓,✓,0.7941,0.8507,0.7888,0.7428,7.17,ssl_pseudo_100pct_seed42
+E. Full Pipeline (Ours),✓,✓,✓,✓,✓,0.7905,0.8533,0.7938,0.7244,13.26,full_pipeline_100pct_seed42
