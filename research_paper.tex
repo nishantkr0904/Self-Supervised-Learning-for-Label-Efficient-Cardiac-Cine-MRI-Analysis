@@ -488,6 +488,33 @@ Figure~\ref{fig:per_patient} displays the distribution of Dice scores across all
 \label{fig:per_patient}
 \end{figure*}
 
+\subsection{Test-Time Perturbation Robustness}
+To evaluate robustness under acquisition noise and contrast shifts, both 100\%-label checkpoints were evaluated identically across five deterministic test-time conditions on the canonical 20-patient test cohort ($398$ slices, fixed seed 42, \texttt{medpy} HD95; Table~\ref{tab:robustness}). Paired perturbation testing compares the Full Pipeline (\texttt{full\_pipeline\_100pct\_seed42}, $0.7905$ clean Mean Dice) against the handoff supervised checkpoint (\texttt{supervised\_100pct\_seed42}, $0.7692$ clean Mean Dice; distinct from the $0.8064$ canonical baseline run in Table~\ref{tab:main_results}). Under additive Gaussian noise at $\sigma = 0.10$, the Full Pipeline degrades by only $-0.0120$ ($0.7905 \rightarrow 0.7785$, $13.73$\,mm HD95) versus $-0.0176$ ($0.7692 \rightarrow 0.7516$, $21.91$\,mm HD95) for Supervised. Under $0.9\times$ and $1.1\times$ intensity scaling, both models remain within $\pm 0.0020$ Mean Dice, with the Full Pipeline preserving approximately $+0.020$ higher Mean Dice ($+0.0122$ to $+0.0269$) across every condition and $8$--$9$\,mm lower HD95 across clean, scaling, and strong noise conditions ($3.72$\,mm lower at $\sigma=0.05$).
+
+\begin{table}[htbp]
+\caption{Test-Time Perturbation Robustness on Canonical ACDC Test Cohort (20 Patients, 398 Slices, Seed 42; HD95 in mm)}%
+\label{tab:robustness}
+\renewcommand{\arraystretch}{1.15}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+\textbf{Condition} & \textbf{Sup. Dice$^*$} & \textbf{Sup. HD95} & \textbf{Full Dice} & \textbf{Full HD95} & \textbf{Full $\Delta$} \\
+\midrule
+Clean ($\sigma=0$, $1.0\times$)  & 0.7692 & 21.98 & \textbf{0.7905} & \textbf{13.26} & $+0.0000$ \\
+Gaussian Noise ($\sigma=0.05$)    & 0.7692 & 20.32 & \textbf{0.7814} & \textbf{16.60} & $-0.0091$ \\
+Gaussian Noise ($\sigma=0.10$)    & 0.7516 & 21.91 & \textbf{0.7785} & \textbf{13.73} & $-0.0120$ \\
+Intensity Scale ($0.9\times$)     & 0.7708 & 20.75 & \textbf{0.7915} & \textbf{12.47} & $+0.0010$ \\
+Intensity Scale ($1.1\times$)     & 0.7685 & 22.87 & \textbf{0.7885} & \textbf{13.94} & $-0.0020$ \\
+\botrule
+\end{tabular}
+\begin{tablenotes}
+\scriptsize
+\item $^*$Paired perturbation testing uses the handoff \texttt{supervised\_100pct\_seed42} checkpoint ($0.7692$ clean Mean Dice), distinct from the $0.8064$ canonical baseline run in Table~\ref{tab:main_results}.
+\end{tablenotes}
+\end{table}
+
 % ==============================================================================
 \section{Discussion}\label{sec:discussion}
 % ==============================================================================
