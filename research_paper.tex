@@ -231,7 +231,7 @@ F_{l} = \text{LeakyReLU}\bigl(\mathcal{F}(F_{l-1}) + \mathcal{W}_s F_{l-1}\bigr)
 Spatial downsampling by a factor of 2 is performed by max-pooling layers between stages. The bottleneck representation has spatial dimensions $16 \times 16$ with 256 feature channels, giving approximately 1.2M parameters for the encoder.
 
 \subsection{Self-Supervised Pretraining Objectives}
-The encoder is pretrained without ground-truth masks using two complementary objectives (\texttt{src/ssl\_pretraining.py}). First, masked image reconstruction enforces local spatial representation learning. Input cine frames $I_t$ are partitioned into $16 \times 16$ non-overlapping patches. A random masking ratio of $r = 0.40$ is applied, zeroing out masked patches $\mathcal{M}$. Unmasked features extracted by $E_\theta$ pass through a lightweight convolutional reconstruction head $\mathcal{D}_{\text{recon}}$ to predict original pixel intensities:
+The encoder is pretrained without ground-truth masks using two complementary objectives (\texttt{src/ssl\_pretraining.py}). First, masked image reconstruction enforces local spatial representation learning. Input cine frames $I_t$ are partitioned into $16 \times 16$ non-overlapping patches. A random masking ratio of $r = 0.50$ is applied, zeroing out masked patches $\mathcal{M}$. Unmasked features extracted by $E_\theta$ pass through a lightweight convolutional reconstruction head $\mathcal{D}_{\text{recon}}$ to predict original pixel intensities:
 \begin{equation}
 \mathcal{L}_{\text{recon}} = \frac{1}{|\mathcal{M}|} \sum_{i \in \mathcal{M}} \bigl| I_t(i) - \hat{I}_t(i) \bigr|
 \label{eq:recon}
@@ -288,12 +288,12 @@ where $w(\mathbf{x}) = \mathbb{I}[p_{\max}(\mathbf{x}) \ge 0.90 \land H(\mathbf{
 % ==============================================================================
 
 \subsection{Implementation and Training Configuration}
-Models were implemented in PyTorch 2.14 using MONAI 1.3~\cite{cardoso2022monai} on Linux workstations equipped with NVIDIA Tesla T4 and P100 GPUs. Self-supervised pretraining was run for 100 epochs with batch size 8 using the AdamW optimizer (initial learning rate $1\times 10^{-4}$, weight decay $1\times 10^{-4}$) and a cosine annealing learning rate schedule. Fine-tuning was trained for 150 epochs with batch size 16, using early stopping with a 20-epoch patience window on validation mean Dice. The random seed was fixed to 42 for all runs to maintain deterministic training splits and initializations.
+Models were implemented natively in PyTorch (using the custom PyTorch 2D Residual U-Net \texttt{SegmentationUNet}) on Linux workstations equipped with NVIDIA Tesla T4 and P100 GPUs, retaining MONAI~\cite{cardoso2022monai} only as an optional dependency in \texttt{requirements.txt} rather than importing \texttt{monai} in \texttt{src/}. Self-supervised pretraining was run for 100 epochs with batch size 8 using the AdamW optimizer (initial learning rate $1\times 10^{-4}$, weight decay $1\times 10^{-4}$) and a cosine annealing learning rate schedule. Fine-tuning was trained for 150 epochs with batch size 16, using early stopping with a 20-epoch patience window on validation mean Dice. The random seed was fixed to 42 for all runs to maintain deterministic training splits and initializations.
 
 \subsection{Evaluated Architectural Baselines}
 To benchmark the proposed model under identical experimental conditions, six baseline configurations were evaluated:
 \begin{enumerate}
-    \item Supervised MONAI U-Net: A standard 2D residual U-Net initialized from scratch (23.2\,MB checkpoint size).
+    \item Supervised 2D Residual U-Net: A custom PyTorch 2D Residual U-Net (\texttt{SegmentationUNet}) initialized from scratch (23.2\,MB checkpoint size).
     \item TransUNet (Full): A hybrid ResNet-50 and ViT-B/16 architecture~\cite{chen2021transunet} with 12 transformer layers, totaling 105M parameters (1.18\,GB checkpoint size).
     \item SegFormer (Full): A hierarchical Mix Transformer (MiT-B2) encoder~\cite{xie2021segformer} with all-MLP decoders, totaling 24.7M parameters (44.8\,MB checkpoint size).
     \item Swin-Unet (Full): A pure transformer U-Net using Swin-Tiny shifted window blocks~\cite{cao2022swin}, totaling 27.2M parameters (580\,MB checkpoint size).
@@ -369,7 +369,7 @@ Table~\ref{tab:label_eff} and Figure~\ref{fig:label_eff} present segmentation me
 \textbf{Method} & \textbf{10\% Labels} & \textbf{25\% Labels} & \textbf{50\% Labels} & \textbf{100\% Labels} & \textbf{HD95 @ 100\%} & \textbf{Protocol Notes} \\
 \midrule
 \textbf{Full Pipeline (Ours)} & \textbf{0.6786} & \textbf{0.7316} & \textbf{0.7547} & \textbf{0.7905} & 13.26\,mm & Motion-Guided SSL Test Set \\
-Supervised U-Net Baseline      & 0.6056*         & 0.6932*         & 0.7737*         & \textbf{0.8064} & 6.23\,mm  & Canonical MONAI 2D U-Net \\
+Supervised U-Net Baseline      & 0.6056*         & 0.6932*         & 0.7737*         & \textbf{0.8064} & 6.23\,mm  & Custom PyTorch ResUNet \\
 MedSAM (Fine-Tuned)            & 0.3382          & 0.3838          & 0.4398          & \textbf{0.4897} & 20.94\,mm & Fine-Tuned Mask Decoder \\
 TransUNet (Full)               & ---             & ---             & ---             & \textbf{0.8189} & 3.70\,mm  & Evaluated at 100\% only \\
 SegFormer (Full)               & ---             & ---             & ---             & \textbf{0.8038} & 3.77\,mm  & Evaluated at 100\% only \\

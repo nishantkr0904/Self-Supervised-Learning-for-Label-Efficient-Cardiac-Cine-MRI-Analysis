@@ -145,7 +145,7 @@ Validation and test patients have **zero overlap** with training subsets.
 ## F. Baseline Cardiac Segmentation Model
 
 Implemented in [`src/segmentation_model.py`](file:///c:/Users/Saket/OneDrive/Desktop/UROP/motion_guided_ssl_project/src/segmentation_model.py):
-- **Architecture**: 2D U-Net with 4-stage residual convolutional encoder (`[32, 64, 128, 256]` channels) and symmetric decoder with skip connections.
+- **Architecture**: Custom PyTorch 2D Residual U-Net (`SegmentationUNet`) with 4-stage residual convolutional encoder (`[32, 64, 128, 256]` channels) and symmetric decoder with skip connections (native PyTorch; `monai` is not imported in `src/`).
 - **Parameters**: 2,012,580 trainable parameters.
 - **Loss Function**: Compound Dice + Cross-Entropy Loss:
   $$\mathcal{L}_{\text{sup}} = \mathcal{L}_{\text{dice}} + \mathcal{L}_{\text{ce}}$$

@@ -24,7 +24,7 @@ The following requirements are derived directly from the model architecture, ten
 - **CUDA Version**: CUDA 11.8 or CUDA 12.1+ (compatible with PyTorch 2.0+).
 - **Python Version**: Python 3.9, 3.10, or 3.11 (tested on Python 3.11).
 - **PyTorch**: `torch >= 2.0.0`, `torchvision >= 0.15.0`.
-- **MONAI**: `monai >= 1.3.0`.
+- **MONAI**: `monai >= 1.3.0` (optional dependency in `requirements.txt` for protocol compatibility; active segmentation models in `src/` use the custom PyTorch 2D Residual U-Net `SegmentationUNet` without importing `monai`).
 
 ### Disk Storage
 - **Raw ACDC Dataset**: $\approx 2.5\text{ GB}$ (compressed zip $+$ extracted NIfTI volumes).
