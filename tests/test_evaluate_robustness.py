@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -230,16 +230,94 @@ class EvaluateRobustnessTests(unittest.TestCase):
             p2 = json.loads((alt_results / "full_pipeline_100pct_seed42" / "robustness_metrics.json").read_text())
             self.assertEqual(p1["conditions"], p2["conditions"])
 
-    def test_fail_closed_provenance_cohort_and_cli_validation(self):
+    def test_legacy_allowlisted_and_mismatched_provenance_validation(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             cfg_path, split_path, results_dir, _ = _make_synthetic_test_env(
-                root, run_ids=["supervised_100pct_seed42"]
+                root, run_ids=["supervised_100pct_seed42", "custom_legacy_run"]
             )
             ckpt_file = root / "checkpoints" / "supervised_100pct_seed42" / "supervised_100pct_seed42_best.pth"
-            ckpt = torch.load(ckpt_file, map_location="cpu", weights_only=False)
-            ckpt["experiment_name"] = "wrong_run_id"
-            torch.save(ckpt, ckpt_file)
+
+            # 1. Legacy allowlisted checkpoint (experiment_name=None) -> note + allowed
+            legacy_ckpt = torch.load(ckpt_file, map_location="cpu", weights_only=False)
+            legacy_ckpt.pop("experiment_name", None)
+            torch.save(legacy_ckpt, ckpt_file)
+
+            stdout_buf = io.StringIO()
+            with redirect_stdout(stdout_buf):
+                with patch.object(er, "CANONICAL_TEST_SPLIT", split_path):
+                    rc = er.main(
+                        [
+                            "--config",
+                            str(cfg_path),
+                            "--run-id",
+                            "supervised_100pct_seed42",
+                            "--device",
+                            "cpu",
+                        ]
+                    )
+            self.assertEqual(rc, 0)
+            self.assertIn("Note:", stdout_buf.getvalue())
+            self.assertTrue((results_dir / "supervised_100pct_seed42" / "robustness_metrics.json").exists())
+
+            # Legacy allowlisted run via explicit --checkpoint-path (experiment_name=None) -> allowed
+            override_ckpt = root / "legacy_override_best.pth"
+            torch.save(legacy_ckpt, override_ckpt)
+            with redirect_stdout(io.StringIO()):
+                with patch.object(er, "CANONICAL_TEST_SPLIT", split_path):
+                    rc_override = er.main(
+                        [
+                            "--config",
+                            str(cfg_path),
+                            "--run-id",
+                            "supervised_100pct_seed42",
+                            "--checkpoint-path",
+                            str(override_ckpt),
+                            "--device",
+                            "cpu",
+                        ]
+                    )
+            self.assertEqual(rc_override, 0)
+
+            # Legacy checkpoint in canonical layout (<checkpoint_dir>/<run_id>/<run_id>_best.pth) -> allowed
+            canonical_legacy_file = root / "checkpoints" / "custom_legacy_run" / "custom_legacy_run_best.pth"
+            canonical_legacy_ckpt = torch.load(canonical_legacy_file, map_location="cpu", weights_only=False)
+            canonical_legacy_ckpt.pop("experiment_name", None)
+            torch.save(canonical_legacy_ckpt, canonical_legacy_file)
+            with redirect_stdout(io.StringIO()):
+                with patch.object(er, "CANONICAL_TEST_SPLIT", split_path):
+                    rc_canon = er.main(
+                        [
+                            "--config",
+                            str(cfg_path),
+                            "--run-id",
+                            "custom_legacy_run",
+                            "--device",
+                            "cpu",
+                        ]
+                    )
+            self.assertEqual(rc_canon, 0)
+
+            # Non-allowlisted legacy checkpoint outside canonical layout -> still fails closed
+            with self.assertRaisesRegex(ValueError, "provenance missing"):
+                with patch.object(er, "CANONICAL_TEST_SPLIT", split_path):
+                    er.main(
+                        [
+                            "--config",
+                            str(cfg_path),
+                            "--run-id",
+                            "custom_legacy_run",
+                            "--checkpoint-path",
+                            str(override_ckpt),
+                            "--device",
+                            "cpu",
+                        ]
+                    )
+
+            # 2. Mismatched experiment_name ("wrong_run") -> raises ValueError
+            bad_ckpt = torch.load(ckpt_file, map_location="cpu", weights_only=False)
+            bad_ckpt["experiment_name"] = "wrong_run"
+            torch.save(bad_ckpt, ckpt_file)
 
             with self.assertRaisesRegex(ValueError, "provenance mismatch"):
                 with patch.object(er, "CANONICAL_TEST_SPLIT", split_path):

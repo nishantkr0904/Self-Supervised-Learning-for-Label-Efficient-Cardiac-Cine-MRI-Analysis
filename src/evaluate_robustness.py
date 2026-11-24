@@ -152,7 +152,13 @@ def load_checkpoint_model(
     checkpoint_dir: str,
     checkpoint_path_override: Optional[str] = None,
 ) -> Tuple[torch.nn.Module, Path]:
-    """Load a segmentation checkpoint with strict experiment_name provenance validation."""
+    """Load a segmentation checkpoint with experiment_name provenance validation.
+
+    Allows legacy checkpoints missing ``experiment_name`` (``None``) when
+    ``run_id`` is in ``DEFAULT_RUN_IDS`` or the resolved file matches the
+    canonical ``<checkpoint_dir>/<run_id>/<run_id>_best.pth`` layout, while
+    still failing closed whenever ``experiment_name`` is present and mismatches.
+    """
     safe_run_id = validate_safe_run_id(run_id)
     ckpt_path = resolve_checkpoint(
         safe_run_id,
@@ -161,7 +167,24 @@ def load_checkpoint_model(
     )
     checkpoint = torch.load(ckpt_path, map_location=device, weights_only=False)
     provenance = checkpoint.get("experiment_name") if isinstance(checkpoint, dict) else None
-    if provenance is None or str(provenance) != safe_run_id:
+    canonical_ckpt = (Path(checkpoint_dir) / safe_run_id / f"{safe_run_id}_best.pth").resolve()
+    default_canonical_ckpt = (Path("checkpoints/experiments") / safe_run_id / f"{safe_run_id}_best.pth").resolve()
+    resolved_ckpt = ckpt_path.resolve()
+
+    if provenance is None:
+        is_allowlisted = safe_run_id in DEFAULT_RUN_IDS
+        matches_canonical = resolved_ckpt in {canonical_ckpt, default_canonical_ckpt}
+        if is_allowlisted or matches_canonical:
+            print(
+                f"Note: Legacy checkpoint {ckpt_path} has no 'experiment_name' metadata; "
+                f"allowing load for run '{safe_run_id}'."
+            )
+        else:
+            raise ValueError(
+                f"Checkpoint provenance missing for non-allowlisted run_id '{safe_run_id}' "
+                f"outside canonical checkpoint directory ({ckpt_path})."
+            )
+    elif str(provenance) != safe_run_id:
         raise ValueError(
             f"Checkpoint provenance mismatch for run_id '{safe_run_id}': "
             f"expected experiment_name={safe_run_id!r}, got {provenance!r} ({ckpt_path})"
