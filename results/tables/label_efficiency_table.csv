@@ -1,6 +1,6 @@
 Method,10% Labels,25% Labels,50% Labels,100% Labels,HD95 @ 100% (mm),Notes
 Full Pipeline (Ours),0.6786,0.7316,0.7547,0.7905,13.26 mm,Proposed motion-guided SSL
-Supervised U-Net (Baseline),0.6056*,0.6932*,0.7737*,0.8064,6.23 mm,Standard supervised 2D U-Net
+Supervised U-Net (Baseline),0.5807,0.6608,0.7293,0.8064,6.23 mm,Standard supervised 2D U-Net
 MedSAM (Fine-Tuned),0.3382,0.3838,0.4398,0.4897,20.94 mm,MedSAM ViT-B fine-tuned decoder
 TransUNet (Full),—,—,—,0.8189,3.70 mm,Evaluated at 100% labels only
 SegFormer (Full),—,—,—,0.8038,3.77 mm,Evaluated at 100% labels only

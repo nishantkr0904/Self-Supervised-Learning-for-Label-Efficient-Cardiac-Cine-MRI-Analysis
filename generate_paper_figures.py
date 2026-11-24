@@ -43,28 +43,34 @@ plt.rcParams.update({
 def make_fig2_label_efficiency():
     fractions = [10, 25, 50, 100]
     
-    # Verified metrics
+    # Verified canonical 20-patient test-set metrics
     ours = [0.6786, 0.7316, 0.7547, 0.7905]
-    unet_baseline = [0.6056, 0.6932, 0.7737, 0.8064]
+    unet_baseline = [0.5807, 0.6608, 0.7293, 0.8064]
     medsam_finetuned = [0.3382, 0.3838, 0.4398, 0.4897]
     
     fig, ax = plt.subplots(figsize=(6.5, 4.5), dpi=300)
     
     ax.plot(fractions, ours, "o-", color="#1f77b4", label="Proposed Full Pipeline (Ours)", lw=2.2, zorder=4)
-    ax.plot(fractions, unet_baseline, "s--", color="#d62728", label="Supervised U-Net Baseline*", lw=2.0, zorder=3)
+    ax.plot(fractions, unet_baseline, "s--", color="#d62728", label="Supervised U-Net Baseline", lw=2.0, zorder=3)
     ax.plot(fractions, medsam_finetuned, "^:", color="#ff7f0e", label="MedSAM (Fine-Tuned Decoder)", lw=1.8, zorder=2)
     
-    # Annotate key low-label margin
-    ax.annotate("+12.0% Rel. Gain\n(0.6786 vs 0.6056)",
-                xy=(10, 0.6786), xytext=(15, 0.61),
+    # Annotate key low-label margins
+    ax.annotate("+16.9% Rel. Gain\n(0.6786 vs 0.5807)",
+                xy=(10, 0.6786), xytext=(11, 0.77),
                 arrowprops=dict(arrowstyle="->", color="#1f77b4", lw=1.2),
-                fontsize=9.5, fontweight="bold", color="#1f77b4",
+                fontsize=9.2, fontweight="bold", color="#1f77b4",
                 bbox=dict(boxstyle="round,pad=0.3", fc="#eaf2f8", ec="#1f77b4", lw=0.8))
     
-    ax.annotate("+5.5% Rel. Gain\n(0.7316 vs 0.6932)",
-                xy=(25, 0.7316), xytext=(30, 0.68),
+    ax.annotate("+10.7% Rel. Gain\n(0.7316 vs 0.6608)",
+                xy=(25, 0.7316), xytext=(28, 0.57),
                 arrowprops=dict(arrowstyle="->", color="#1f77b4", lw=1.2),
-                fontsize=9.5, fontweight="bold", color="#1f77b4",
+                fontsize=9.2, fontweight="bold", color="#1f77b4",
+                bbox=dict(boxstyle="round,pad=0.3", fc="#eaf2f8", ec="#1f77b4", lw=0.8))
+
+    ax.annotate("+3.5% Rel. Gain\n(0.7547 vs 0.7293)",
+                xy=(50, 0.7547), xytext=(55, 0.64),
+                arrowprops=dict(arrowstyle="->", color="#1f77b4", lw=1.2),
+                fontsize=9.2, fontweight="bold", color="#1f77b4",
                 bbox=dict(boxstyle="round,pad=0.3", fc="#eaf2f8", ec="#1f77b4", lw=0.8))
     
     ax.set_xlabel("Proportion of Labeled Training Patients (%)")

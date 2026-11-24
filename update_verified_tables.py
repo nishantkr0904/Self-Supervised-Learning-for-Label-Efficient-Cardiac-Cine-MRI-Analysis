@@ -61,6 +61,10 @@ def main():
     fp_25 = REPO_ROOT / "results" / "experiments" / "full_pipeline_25pct_seed42" / "test_metrics.json"
     fp_10 = REPO_ROOT / "results" / "experiments" / "full_pipeline_10pct_seed42" / "test_metrics.json"
 
+    sup_50 = REPO_ROOT / "results" / "experiments" / "supervised_50pct_seed42" / "test_metrics.json"
+    sup_25 = REPO_ROOT / "results" / "experiments" / "supervised_25pct_seed42" / "test_metrics.json"
+    sup_10 = REPO_ROOT / "results" / "experiments" / "supervised_10pct_seed42" / "test_metrics.json"
+
     ssl_only = REPO_ROOT / "results" / "experiments" / "ssl_finetune_100pct_seed42" / "test_metrics.json"
     ssl_motion = REPO_ROOT / "results" / "experiments" / "ssl_motion_100pct_seed42" / "test_metrics.json"
     fp_raw = REPO_ROOT / "results" / "experiments" / "full_pipeline_raw_100pct_seed42" / "test_metrics.json"
@@ -75,6 +79,10 @@ def main():
     m_fp_50 = load_metrics(fp_50)
     m_fp_25 = load_metrics(fp_25)
     m_fp_10 = load_metrics(fp_10)
+
+    m_sup_50 = load_metrics(sup_50)
+    m_sup_25 = load_metrics(sup_25)
+    m_sup_10 = load_metrics(sup_10)
 
     m_ssl_only = load_metrics(ssl_only)
     m_ssl_motion = load_metrics(ssl_motion)
@@ -154,7 +162,7 @@ def main():
     # =========================================================================
     table_b_data = [
         ("Full Pipeline (Ours)", f"{m_fp_10['mean_dice']:.4f}", f"{m_fp_25['mean_dice']:.4f}", f"{m_fp_50['mean_dice']:.4f}", f"{m_fp_100['mean_dice']:.4f}", f"{m_fp_100['hd95']:.2f} mm", "Proposed motion-guided SSL"),
-        ("Supervised U-Net (Baseline)", "0.6056*", "0.6932*", "0.7737*", f"{m_unet_100['mean_dice']:.4f}", f"{m_unet_100['hd95']:.2f} mm", "Standard supervised 2D U-Net"),
+        ("Supervised U-Net (Baseline)", f"{m_sup_10['mean_dice']:.4f}", f"{m_sup_25['mean_dice']:.4f}", f"{m_sup_50['mean_dice']:.4f}", f"{m_unet_100['mean_dice']:.4f}", f"{m_unet_100['hd95']:.2f} mm", "Standard supervised 2D U-Net"),
         ("MedSAM (Fine-Tuned)", "0.3382", "0.3838", "0.4398", f"{m_medsam_finetuned_100['mean_dice']:.4f}", f"{m_medsam_finetuned_100['hd95']:.2f} mm", "MedSAM ViT-B fine-tuned decoder"),
         ("TransUNet (Full)", "—", "—", "—", f"{m_transunet['mean_dice']:.4f}", f"{m_transunet['hd95']:.2f} mm", "Evaluated at 100% labels only"),
         ("SegFormer (Full)", "—", "—", "—", f"{m_segformer['mean_dice']:.4f}", f"{m_segformer['hd95']:.2f} mm", "Evaluated at 100% labels only"),
@@ -178,9 +186,7 @@ def main():
         for row in table_b_data:
             f.write(f"| **{row[0]}** | {row[1]} | {row[2]} | {row[3]} | **{row[4]}** | {row[5]} | {row[6]} |\n")
         
-        f.write("\n*\\*Note: Supervised U-Net metrics at 10%, 25%, and 50% represent best validation Dice recorded from canonical training histories; 100% is evaluated on the unseen 20-patient test set.*\n\n")
-        
-        f.write("### Full Pipeline (Ours): Detailed Per-Class Breakdown Across Label Fractions\n\n")
+        f.write("\n### Full Pipeline (Ours): Detailed Per-Class Breakdown Across Label Fractions\n\n")
         f.write("| Label Fraction | LV Dice | MYO Dice | RV Dice | Mean Dice | HD95 (mm) | Train Cohort | Test Cohort |\n")
         f.write("| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |\n")
         f.write(f"| **10%** | {m_fp_10['lv_dice']:.4f} | {m_fp_10['myo_dice']:.4f} | {m_fp_10['rv_dice']:.4f} | **{m_fp_10['mean_dice']:.4f}** | {m_fp_10['hd95']:.2f} | 7 patients (140 slices) | 20 patients (398 slices) |\n")
@@ -193,6 +199,9 @@ def main():
         f.write(f"- Full Pipeline 25%: `results/experiments/full_pipeline_25pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(fp_25)[:16]}...`)\n")
         f.write(f"- Full Pipeline 50%: `results/experiments/full_pipeline_50pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(fp_50)[:16]}...`)\n")
         f.write(f"- Full Pipeline 100%: `results/experiments/full_pipeline_100pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(fp_100)[:16]}...`)\n")
+        f.write(f"- Supervised U-Net 10%: `results/experiments/supervised_10pct_seed42/test_metrics.json` (HD95: `{m_sup_10['hd95']:.2f} mm`, SHA-256: `{get_file_sha256(sup_10)[:16]}...`)\n")
+        f.write(f"- Supervised U-Net 25%: `results/experiments/supervised_25pct_seed42/test_metrics.json` (HD95: `{m_sup_25['hd95']:.2f} mm`, SHA-256: `{get_file_sha256(sup_25)[:16]}...`)\n")
+        f.write(f"- Supervised U-Net 50%: `results/experiments/supervised_50pct_seed42/test_metrics.json` (HD95: `{m_sup_50['hd95']:.2f} mm`, SHA-256: `{get_file_sha256(sup_50)[:16]}...`)\n")
 
     print(f"Generated {table_b_md} and {table_b_csv}")
 
