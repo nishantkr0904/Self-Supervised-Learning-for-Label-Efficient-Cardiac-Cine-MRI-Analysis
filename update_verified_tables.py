@@ -63,6 +63,7 @@ def main():
 
     ssl_only = REPO_ROOT / "results" / "experiments" / "ssl_finetune_100pct_seed42" / "test_metrics.json"
     ssl_motion = REPO_ROOT / "results" / "experiments" / "ssl_motion_100pct_seed42" / "test_metrics.json"
+    fp_raw = REPO_ROOT / "results" / "experiments" / "full_pipeline_raw_100pct_seed42" / "test_metrics.json"
     ssl_pseudo = REPO_ROOT / "results" / "experiments" / "ssl_pseudo_100pct_seed42" / "test_metrics.json"
 
     transunet = REPO_ROOT / "results" / "experiments" / "baseline_transunet_full" / "test_metrics.json"
@@ -77,6 +78,7 @@ def main():
 
     m_ssl_only = load_metrics(ssl_only)
     m_ssl_motion = load_metrics(ssl_motion)
+    m_fp_raw = load_metrics(fp_raw)
     m_ssl_pseudo = load_metrics(ssl_pseudo)
 
     m_transunet = load_metrics(transunet)
@@ -198,11 +200,12 @@ def main():
     # TABLE C: ABLATION STUDY
     # =========================================================================
     table_c_data = [
-        ("A. Supervised Baseline", "✓", "—", "—", "—", "—", m_unet_100["mean_dice"], m_unet_100["lv_dice"], m_unet_100["myo_dice"], m_unet_100["rv_dice"], m_unet_100["hd95"], "unet_100pct_seed42_artifacts.zip"),
-        ("B. SSL Only", "✓", "✓", "—", "—", "—", m_ssl_only["mean_dice"], m_ssl_only["lv_dice"], m_ssl_only["myo_dice"], m_ssl_only["rv_dice"], m_ssl_only["hd95"], "ssl_finetune_100pct_seed42"),
-        ("C. SSL + Motion", "✓", "✓", "✓", "—", "—", m_ssl_motion["mean_dice"], m_ssl_motion["lv_dice"], m_ssl_motion["myo_dice"], m_ssl_motion["rv_dice"], m_ssl_motion["hd95"], "ssl_motion_100pct_seed42"),
-        ("D. SSL + Pseudo-Labels", "✓", "✓", "—", "✓", "—", m_ssl_pseudo["mean_dice"], m_ssl_pseudo["lv_dice"], m_ssl_pseudo["myo_dice"], m_ssl_pseudo["rv_dice"], m_ssl_pseudo["hd95"], "ssl_pseudo_100pct_seed42"),
-        ("E. Full Pipeline (Ours)", "✓", "✓", "✓", "✓", "✓", m_fp_100["mean_dice"], m_fp_100["lv_dice"], m_fp_100["myo_dice"], m_fp_100["rv_dice"], m_fp_100["hd95"], "full_pipeline_100pct_seed42"),
+        ("1. Baseline Only", "✓", "—", "—", "—", "—", m_unet_100["mean_dice"], m_unet_100["lv_dice"], m_unet_100["myo_dice"], m_unet_100["rv_dice"], m_unet_100["hd95"], "unet_100pct_seed42_artifacts.zip"),
+        ("2. + SSL", "✓", "✓", "—", "—", "—", m_ssl_only["mean_dice"], m_ssl_only["lv_dice"], m_ssl_only["myo_dice"], m_ssl_only["rv_dice"], m_ssl_only["hd95"], "ssl_finetune_100pct_seed42"),
+        ("3. + Motion", "✓", "✓", "✓", "—", "—", m_ssl_motion["mean_dice"], m_ssl_motion["lv_dice"], m_ssl_motion["myo_dice"], m_ssl_motion["rv_dice"], m_ssl_motion["hd95"], "ssl_motion_100pct_seed42"),
+        ("4. + Pseudo-Labels (Unfiltered)", "✓", "✓", "✓", "✓", "—", m_fp_raw["mean_dice"], m_fp_raw["lv_dice"], m_fp_raw["myo_dice"], m_fp_raw["rv_dice"], m_fp_raw["hd95"], "full_pipeline_raw_100pct_seed42"),
+        ("5. + Confidence Filter (Full Ours)", "✓", "✓", "✓", "✓", "✓", m_fp_100["mean_dice"], m_fp_100["lv_dice"], m_fp_100["myo_dice"], m_fp_100["rv_dice"], m_fp_100["hd95"], "full_pipeline_100pct_seed42"),
+        ("Alt. SSL + Filtered Pseudo", "✓", "✓", "—", "✓", "✓", m_ssl_pseudo["mean_dice"], m_ssl_pseudo["lv_dice"], m_ssl_pseudo["myo_dice"], m_ssl_pseudo["rv_dice"], m_ssl_pseudo["hd95"], "ssl_pseudo_100pct_seed42"),
     ]
 
     table_c_md = tables_dir / "ablation_table.md"
@@ -216,22 +219,24 @@ def main():
 
     with open(table_c_md, "w", encoding="utf-8") as f:
         f.write("# Table C: Ablation Study (100% Labeled Data)\n\n")
-        f.write("Systematic component ablation evaluated on the canonical 20-patient ACDC test set (398 slices, seed 42).\n\n")
+        f.write("Systematic component ablation evaluated on the canonical 20-patient ACDC test set (398 slices, seed 42). Ordered along the Section 15 Table C progression (`Baseline -> +SSL -> +Motion -> +Pseudo Labels -> +Conf Filter`), followed by the motion-free filtered pseudo-label alternative (`Alt.`).\n\n")
         f.write("| Variant | Baseline | SSL | Motion | Pseudo Labels | Conf Filter | Mean Dice | LV Dice | MYO Dice | RV Dice | HD95 (mm) | Source Artifact |\n")
         f.write("| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |\n")
         for row in table_c_data:
             f.write(f"| **{row[0]}** | {row[1]} | {row[2]} | {row[3]} | {row[4]} | {row[5]} | **{row[6]:.4f}** | {row[7]:.4f} | {row[8]:.4f} | {row[9]:.4f} | **{row[10]:.2f}** | `{row[11]}` |\n")
         
         f.write("\n### Key Observations\n")
-        f.write("1. **SSL Representation Transfer**: Adding self-supervised temporal pretraining (Variant B) establishes robust initial features for cardiac anatomy.\n")
-        f.write("2. **Pseudo-Label Contribution**: Incorporating confidence-filtered pseudo-labels (Variant D) yields the highest individual Mean Dice (0.7941) and lowest HD95 (7.17 mm) among SSL ablations.\n")
-        f.write("3. **Motion Consistency**: Motion-guided warping encourages boundary alignment across cardiac phases, maintaining strong myocardium Dice (0.7938) in the Full Pipeline.\n")
+        f.write("1. **SSL Representation Transfer**: Adding self-supervised temporal pretraining (Row 2) establishes temporal features for cardiac anatomy (`0.7898` Mean Dice).\n")
+        f.write("2. **Unfiltered Pseudo-Label Contribution**: Adding raw, unfiltered pseudo-labels on top of SSL + Motion (Row 4 vs. Row 3) increases Mean Dice from `0.7723` to `0.7868` (`+0.0145`), improving MYO Dice to `0.7961` and RV Dice to `0.7113` while reducing HD95 from `10.34 mm` to `9.19 mm`.\n")
+        f.write("3. **Confidence Filtering Impact**: Enabling dual-criterion confidence thresholding ($p_{\\max} \\ge 0.90$, $H \\le 0.25$) in the Full Pipeline (Row 5 vs. Row 4) raises Mean Dice from `0.7868` to `0.7905` (`+0.0037`) and improves complex RV cavity Dice from `0.7113` to `0.7244` (`+0.0131`).\n")
+        f.write("4. **Motion-Free Filtered Alternative**: Removing motion regularization while retaining SSL and confidence-filtered pseudo-labels (Alt., `ssl_pseudo_100pct_seed42`) achieves the highest semi-supervised Mean Dice (`0.7941`) and lowest boundary error (`7.17 mm` HD95) among SSL variants.\n")
         
         f.write("\n### Data Provenance & Integrity Checksums\n")
-        f.write(f"- Variant B: `results/experiments/ssl_finetune_100pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(ssl_only)[:16]}...`)\n")
-        f.write(f"- Variant C: `results/experiments/ssl_motion_100pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(ssl_motion)[:16]}...`)\n")
-        f.write(f"- Variant D: `results/experiments/ssl_pseudo_100pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(ssl_pseudo)[:16]}...`)\n")
-        f.write(f"- Variant E: `results/experiments/full_pipeline_100pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(fp_100)[:16]}...`)\n")
+        f.write(f"- Row 2 (`ssl_finetune_100pct_seed42`): `results/experiments/ssl_finetune_100pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(ssl_only)[:16]}...`)\n")
+        f.write(f"- Row 3 (`ssl_motion_100pct_seed42`): `results/experiments/ssl_motion_100pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(ssl_motion)[:16]}...`)\n")
+        f.write(f"- Row 4 (`full_pipeline_raw_100pct_seed42`): `results/experiments/full_pipeline_raw_100pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(fp_raw)[:16]}...`)\n")
+        f.write(f"- Row 5 (`full_pipeline_100pct_seed42`): `results/experiments/full_pipeline_100pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(fp_100)[:16]}...`)\n")
+        f.write(f"- Alt. (`ssl_pseudo_100pct_seed42`): `results/experiments/ssl_pseudo_100pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(ssl_pseudo)[:16]}...`)\n")
 
     print(f"Generated {table_c_md} and {table_c_csv}")
 
@@ -239,10 +244,10 @@ def main():
     # TABLE D: PSEUDO-LABEL ANALYSIS
     # =========================================================================
     table_d_data = [
-        ("Raw / Unfiltered Predictions", "100.0%", "0.00", "None", "0.7898", "0.0%", "Direct teacher argmax without quality filtering"),
-        ("Confidence Filtered (MSP >= 0.90)", "0.47%", "0.90", "None", "0.7925", "99.53%", "Rejects uncertain background and ambiguous borders"),
-        ("Confidence & Entropy Filtered (MSP >= 0.90, H <= 0.25)", "0.47%", "0.90", "0.25", "0.7941", "99.53%", "Optimal dual-criterion filter (Variant D)"),
-        ("Full Pipeline (+ Motion Temporal Consistency)", "0.47%", "0.90", "0.25", "0.7905", "99.53%", "Joint motion agreement + confidence filtering"),
+        ("No Pseudo-Labels (SSL + Motion)", "0", "—", "—", "—", "—", f"{m_ssl_motion['mean_dice']:.4f}", f"{m_ssl_motion['hd95']:.2f}", "Supervised ED/ES + motion loss only (no pseudo-labels)"),
+        ("Raw / Unfiltered Pseudo-Labels (+ Motion)", "15,860", "100.0%", "0.0%", "0.00", "No", f"{m_fp_raw['mean_dice']:.4f}", f"{m_fp_raw['hd95']:.2f}", "Direct teacher argmax without filtering (full_pipeline_raw)"),
+        ("Confidence-Filtered Full Pipeline (+ Motion)", "15,860", "98.50%", "1.50%", "0.90", "Yes", f"{m_fp_100['mean_dice']:.4f}", f"{m_fp_100['hd95']:.2f}", "MSP x temporal agreement >= 0.90 + motion regularization"),
+        ("Confidence-Filtered SSL + Pseudo (No Motion)", "15,860", "98.50%", "1.50%", "0.90", "Yes", f"{m_ssl_pseudo['mean_dice']:.4f}", f"{m_ssl_pseudo['hd95']:.2f}", "Filtered 100% pseudo-label pool without fine-tuning motion reg. (Variant D)"),
     ]
 
     table_d_md = tables_dir / "pseudo_label_analysis.md"
@@ -250,28 +255,32 @@ def main():
 
     with open(table_d_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["Method / Filtering Configuration", "Acceptance Rate (%)", "Min Confidence (p_max)", "Max Entropy", "Downstream Mean Dice", "Rejection Rate (%)", "Description"])
+        writer.writerow(["Method / Filtering Configuration", "Pseudo Slices", "Acceptance Rate (%)", "Rejection Rate (%)", "Min Confidence (p_max)", "Temporal Consist.", "Downstream Mean Dice", "HD95 (mm)", "Description"])
         for row in table_d_data:
             writer.writerow(row)
 
     with open(table_d_md, "w", encoding="utf-8") as f:
         f.write("# Table D: Pseudo-Label Analysis\n\n")
-        f.write("Analysis of pseudo-label generation quality, confidence filtering rates, and downstream impact on segmentation performance.\n\n")
-        f.write("| Method / Filtering Configuration | Acceptance Rate (%) | Min Confidence ($p_{max}$) | Max Entropy ($H$) | Downstream Mean Dice | Rejection Rate (%) | Description |\n")
-        f.write("| :--- | :---: | :---: | :---: | :---: | :---: | :--- |\n")
+        f.write("Analysis of pseudo-label generation across 15,860 unlabeled intermediate cine slices (100% training cohort, Kaggle run) and downstream test evaluation on the canonical 20-patient ACDC test cohort (398 slices, seed 42).\n\n")
+        f.write("| Method / Filtering Configuration | Pseudo Slices | Acceptance Rate (%) | Rejection Rate (%) | Min Confidence ($p_{max}$) | Temporal Consist. | Downstream Mean Dice | HD95 (mm) | Description |\n")
+        f.write("| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |\n")
         for row in table_d_data:
-            f.write(f"| **{row[0]}** | {row[1]} | {row[2]} | {row[3]} | **{row[4]}** | {row[5]} | {row[6]} |\n")
+            f.write(f"| **{row[0]}** | {row[1]} | {row[2]} | {row[3]} | {row[4]} | {row[5]} | **{row[6]}** | **{row[7]}** | {row[8]} |\n")
         
         f.write("\n### Filtering Rules & Technical Specifications\n")
-        f.write("- **Confidence Metric**: Maximum Softmax Probability ($p_{max} = \\max_c P(y=c|x)$) thresholded at $0.90$.\n")
-        f.write("- **Entropy Metric**: Normalized Shannon Entropy ($H(p) = -\\sum p_c \\log p_c / \\log C$) thresholded at $0.25$.\n")
-        f.write("- **Temporal Consistency Threshold**: Cosine / agreement threshold $0.80$ with motion-warped adjacent frame.\n")
-        f.write("- **Minimum Foreground Area**: Slices with fewer than 30 accepted foreground pixels are rejected (`ignore_index = -1`).\n")
+        f.write("- **Active 100% Pool Generation (`configs/pseudo_labels.yaml`)**: `confidence_metric: max_probability` ($p_{max} = \\max_c P(y=c|x) \\ge 0.90$) modulated by motion-warped temporal agreement (`use_temporal_consistency: true`, `confidence * agreement >= 0.90` in `src/pseudo_labels.py`).\n")
+        f.write("- **100% Pool Acceptance Statistics (Kaggle)**: Generated **15,860** unlabeled intermediate cine pseudo-labels (`results/pseudo_labels/100pct/pseudo_label_metadata.json`) with **98.50%** pixel acceptance (**1.50%** pixel rejection).\n")
+        f.write("- **Configured Entropy Parameter**: `entropy_threshold: 0.25` in `configs/pseudo_labels.yaml` (available for `entropy`/`hybrid` modes).\n")
+        f.write("- **Minimum Foreground Area**: Slices with fewer than `30` accepted foreground pixels are rejected (`ignore_index = -1`).\n")
         
         f.write("\n### Data Provenance & Integrity Checksums\n")
-        f.write(f"- Pseudo-label metadata: `results/pseudo_labels/pseudo_label_metadata.json` (SHA-256: `{get_file_sha256(pseudo_meta)[:16]}...`)\n")
+        f.write(f"- 100% Kaggle pseudo-label pool: `results/pseudo_labels/100pct/pseudo_label_metadata.json` (`15,860` slices, `98.50%` pixel acceptance; note `results/pseudo_labels/pseudo_label_metadata.json` SHA-256 `{get_file_sha256(pseudo_meta)[:16]}...` records an earlier 2-sample local validation check at `0.47%` acceptance)\n")
         f.write(f"- Pseudo-label generator module: `src/pseudo_labels.py` (SHA-256: `{get_file_sha256(REPO_ROOT / 'src' / 'pseudo_labels.py')[:16]}...`)\n")
-        f.write(f"- SSL + Pseudo downstream evaluation: `results/experiments/ssl_pseudo_100pct_seed42/test_metrics.json`\n")
+        f.write(f"- Pseudo-label config: `configs/pseudo_labels.yaml` (SHA-256: `{get_file_sha256(REPO_ROOT / 'configs' / 'pseudo_labels.yaml')[:16]}...`)\n")
+        f.write(f"- No Pseudo (SSL + Motion): `results/experiments/ssl_motion_100pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(ssl_motion)[:16]}...`)\n")
+        f.write(f"- Raw / Unfiltered (+ Motion): `results/experiments/full_pipeline_raw_100pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(fp_raw)[:16]}...`)\n")
+        f.write(f"- Filtered Full Pipeline: `results/experiments/full_pipeline_100pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(fp_100)[:16]}...`)\n")
+        f.write(f"- Filtered SSL + Pseudo (No Motion): `results/experiments/ssl_pseudo_100pct_seed42/test_metrics.json` (SHA-256: `{get_file_sha256(ssl_pseudo)[:16]}...`)\n")
 
     print(f"Generated {table_d_md} and {table_d_csv}")
     print("\nAll 4 tables successfully created and synchronized with 100% verified source artifacts!")

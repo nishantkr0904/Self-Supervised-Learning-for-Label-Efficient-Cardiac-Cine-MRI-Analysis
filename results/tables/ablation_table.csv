@@ -1,6 +1,7 @@
 Variant,Baseline,SSL,Motion,Pseudo Labels,Conf Filter,Mean Dice,LV Dice,MYO Dice,RV Dice,HD95 (mm),Artifact
-A. Supervised Baseline,✓,—,—,—,—,0.8064,0.8644,0.7992,0.7554,6.23,unet_100pct_seed42_artifacts.zip
-B. SSL Only,✓,✓,—,—,—,0.7898,0.8507,0.7838,0.7348,8.42,ssl_finetune_100pct_seed42
-C. SSL + Motion,✓,✓,✓,—,—,0.7723,0.8441,0.7855,0.6871,10.34,ssl_motion_100pct_seed42
-D. SSL + Pseudo-Labels,✓,✓,—,✓,✓,0.7941,0.8507,0.7888,0.7428,7.17,ssl_pseudo_100pct_seed42
-E. Full Pipeline (Ours),✓,✓,✓,✓,✓,0.7905,0.8533,0.7938,0.7244,13.26,full_pipeline_100pct_seed42
+1. Baseline Only,✓,—,—,—,—,0.8064,0.8644,0.7992,0.7554,6.23,unet_100pct_seed42_artifacts.zip
+2. + SSL,✓,✓,—,—,—,0.7898,0.8507,0.7838,0.7348,8.42,ssl_finetune_100pct_seed42
+3. + Motion,✓,✓,✓,—,—,0.7723,0.8441,0.7855,0.6871,10.34,ssl_motion_100pct_seed42
+4. + Pseudo-Labels (Unfiltered),✓,✓,✓,✓,—,0.7868,0.8530,0.7961,0.7113,9.19,full_pipeline_raw_100pct_seed42
+5. + Confidence Filter (Full Ours),✓,✓,✓,✓,✓,0.7905,0.8533,0.7938,0.7244,13.26,full_pipeline_100pct_seed42
+Alt. SSL + Filtered Pseudo,✓,✓,—,✓,✓,0.7941,0.8507,0.7888,0.7428,7.17,ssl_pseudo_100pct_seed42

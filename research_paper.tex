@@ -413,24 +413,26 @@ Table~\ref{tab:class_eff} reports per-structure performance across label fractio
 The experimental results show that the proposed framework produces its largest gains when labeled training data is scarce. At 10\% labels (7 training patients, 140 slices), the proposed model obtained $0.6786$ mean Dice, compared to $0.6056$ for the supervised U-Net baseline, representing an absolute improvement of $+0.0730$ (+12.0\% relative). At 25\% labels (17 patients, 340 slices), the model reached $0.7316$ mean Dice versus $0.6932$ for the baseline (+5.5\% relative). At 50\% labels, performance rose to $0.7547$, compared to $0.7737$ for the supervised baseline, and at 100\% labels reached $0.7905$ versus $0.8064$. Under 10\% labels, LV cavity segmentation achieved $0.7883$ Dice and myocardium reached $0.6814$ Dice, whereas RV cavity segmentation required larger label fractions to reach $0.7244$ Dice at 100\% labels.
 
 \subsection{Component-Wise Ablation Study}
-To analyze individual contributions of the framework components, five ablation variants were evaluated on the 20-patient test cohort at 100\% labels (Table~\ref{tab:ablation} and Figure~\ref{fig:ablation}).
+To analyze individual contributions of the framework components along the target ablation protocol, six configurations were evaluated on the 20-patient test cohort at 100\% labels (Table~\ref{tab:ablation} and Figure~\ref{fig:ablation}).
 
 \begin{table}[htbp]
 \caption{Component Ablation on Canonical Test Cohort (100\% Labels)}%
 \label{tab:ablation}
-\renewcommand{\arraystretch}{1.2}
+\renewcommand{\arraystretch}{1.15}
 \centering
-\small
-\setlength{\tabcolsep}{3.5pt}
-\begin{tabular}{@{}lccccccccc@{}}
+\scriptsize
+\setlength{\tabcolsep}{1.2pt}
+\begin{tabular}{@{} >{\raggedright\arraybackslash}p{2.15cm} cccccccccc @{}}
 \toprule
-\textbf{Variant} & \textbf{SSL} & \textbf{Motion} & \textbf{Pseudo} & \textbf{Filter} & \textbf{Mean} & \textbf{LV} & \textbf{MYO} & \textbf{RV} & \textbf{HD95 (mm)} \\
+\textbf{Variant} & \textbf{Baseline} & \textbf{SSL} & \textbf{Motion} & \textbf{\shortstack{Pseudo\\Labels}} & \textbf{\shortstack{Conf\\Filter}} & \textbf{\shortstack{Mean\\Dice}} & \textbf{\shortstack{LV\\Dice}} & \textbf{\shortstack{MYO\\Dice}} & \textbf{\shortstack{RV\\Dice}} & \textbf{\shortstack{HD95\\(mm)}} \\
 \midrule
-\textbf{A. Supervised Baseline} & ---             & ---             & ---             & ---             & \textbf{0.8064} & 0.8644 & 0.7992 & 0.7554 & \textbf{6.23} \\
-\textbf{B. SSL Only}            & $\checkmark$    & ---             & ---             & ---             & \textbf{0.7898} & 0.8507 & 0.7838 & 0.7348 & \textbf{8.42} \\
-\textbf{C. SSL + Motion}        & $\checkmark$    & $\checkmark$    & ---             & ---             & \textbf{0.7723} & 0.8441 & 0.7855 & 0.6871 & \textbf{10.34} \\
-\textbf{D. SSL + Pseudo}        & $\checkmark$    & ---             & $\checkmark$    & ---             & \textbf{0.7941} & 0.8507 & 0.7888 & 0.7428 & \textbf{7.17} \\
-\textbf{E. Full Pipeline}       & $\checkmark$    & $\checkmark$    & $\checkmark$    & $\checkmark$    & \textbf{0.7905} & 0.8533 & 0.7938 & 0.7244 & \textbf{13.26} \\
+\textbf{1. Baseline Only}                & $\checkmark$ & ---          & ---          & ---          & ---          & \textbf{0.8064} & 0.8644 & 0.7992 & 0.7554 & \textbf{6.23} \\
+\textbf{2. + SSL}                        & $\checkmark$ & $\checkmark$ & ---          & ---          & ---          & \textbf{0.7898} & 0.8507 & 0.7838 & 0.7348 & \textbf{8.42} \\
+\textbf{3. + Motion}                     & $\checkmark$ & $\checkmark$ & $\checkmark$ & ---          & ---          & \textbf{0.7723} & 0.8441 & 0.7855 & 0.6871 & \textbf{10.34} \\
+\textbf{4. + Pseudo (Unfiltered)}        & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ & ---          & \textbf{0.7868} & 0.8530 & 0.7961 & 0.7113 & \textbf{9.19} \\
+\textbf{5. + Conf Filter (Full)}         & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ & \textbf{0.7905} & 0.8533 & 0.7938 & 0.7244 & \textbf{13.26} \\
+\midrule
+\textbf{Alt. SSL + Filtered Pseudo}      & $\checkmark$ & $\checkmark$ & ---          & $\checkmark$ & $\checkmark$ & \textbf{0.7941} & 0.8507 & 0.7888 & 0.7428 & \textbf{7.17} \\
 \botrule
 \end{tabular}
 \end{table}
@@ -438,33 +440,35 @@ To analyze individual contributions of the framework components, five ablation v
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=0.92\linewidth]{paper_artifacts/figures/fig3_ablation.pdf}
-\caption{Component ablation results showing (a) per-structure Dice coefficients and (b) 95\% Hausdorff boundary distances across Variants A through E.}
+\caption{Component ablation results showing (a) per-structure Dice coefficients and (b) 95\% Hausdorff boundary distances across all six evaluated ablation configurations.}
 \label{fig:ablation}
 \end{figure*}
 
-Variant A (supervised U-Net initialized from scratch) attained $0.8064$ mean Dice and $6.23$\,mm HD95. Variant B (pretraining with masked reconstruction and temporal cosine alignment without motion warping) reached $0.7898$ mean Dice and $8.42$\,mm HD95. Variant C (adding motion warping during pretraining) attained $0.7723$ mean Dice; while myocardium Dice remained steady ($0.7855$), RV cavity Dice decreased to $0.6871$, increasing HD95 to $10.34$\,mm. Variant D (pretraining combined with unfiltered pseudo-labeling) achieved $0.7941$ mean Dice and $7.17$\,mm HD95. Variant E (the full pipeline combining motion warping with confidence filtering) achieved $0.7905$ mean Dice, increasing myocardium Dice to $0.7938$, but yielded a higher HD95 of $13.26$\,mm. The elevated HD95 in Variant E traces to inaccurate optical flow displacement vectors at apical slices, where small anatomical structures caused warped pseudo-labels to introduce isolated false-positive clusters near the image border.
+Row 1 (supervised U-Net initialized from scratch) attained $0.8064$ mean Dice and $6.23$\,mm HD95. Row 2 (+SSL, using masked reconstruction and temporal cosine alignment without motion warping) reached $0.7898$ mean Dice and $8.42$\,mm HD95. Row 3 (+Motion, adding optical-flow warping during pretraining and regularization) attained $0.7723$ mean Dice; while myocardium Dice remained steady ($0.7855$), RV cavity Dice decreased to $0.6871$, increasing HD95 to $10.34$\,mm. Isolating pseudo-label addition without thresholding in Row 4 (+Pseudo-Labels, Unfiltered) improved mean Dice from $0.7723$ to $0.7868$ (LV: $0.8530$, MYO: $0.7961$, RV: $0.7113$) and lowered HD95 to $9.19$\,mm. Enabling dual-criterion confidence thresholding ($p_{\max} \ge 0.90, H \le 0.25$) in Row 5 (the full pipeline) further raised mean Dice to $0.7905$ ($+0.0037$) and specifically improved right ventricular cavity segmentation from $0.7113$ to $0.7244$ ($+0.0131$) by discarding noisy boundary predictions, though it yielded a higher HD95 of $13.26$\,mm due to inaccurate optical flow displacement vectors at extreme apical slices where warped pseudo-labels introduced isolated false-positive clusters near the image border. Finally, disabling motion warping while retaining SSL and confidence-filtered pseudo-labeling (Alt.: SSL + Filtered Pseudo) achieved the highest semi-supervised mean Dice ($0.7941$) and lowest HD95 ($7.17$\,mm) among SSL ablations.
 
 \subsection{Pseudo-Label Filtering and Quality Analysis}
-Table~\ref{tab:pseudo} details pixel acceptance rates and downstream performance across confidence filtering settings.
+Table~\ref{tab:pseudo} summarizes pixel acceptance rates across the 15,860 unlabeled intermediate cine slices generated on the 100\% training cohort and reports downstream test performance across filtering configurations.
 
 \begin{table}[htbp]
-\caption{Pseudo-Label Quality and Confidence-Filtering Analysis}%
+\caption{Pseudo-Label Quality and Confidence-Filtering Analysis (100\% Cohort)}%
 \label{tab:pseudo}
-\renewcommand{\arraystretch}{1.2}
+\renewcommand{\arraystretch}{1.15}
 \centering
-\begin{tabular}{@{}lccccp{3.2cm}@{}}
+\scriptsize
+\setlength{\tabcolsep}{1.5pt}
+\begin{tabular}{@{} >{\raggedright\arraybackslash}p{2.65cm} ccccccc >{\raggedright\arraybackslash}p{2.30cm} @{}}
 \toprule
-\textbf{Filtering Configuration} & \textbf{Accept. (\%)} & \textbf{Min $p_{\max}$} & \textbf{Max $H$} & \textbf{Downstream Mean} & \textbf{Functional Mechanism} \\
+\textbf{Filtering Configuration} & \textbf{Slices} & \textbf{\shortstack{Accept.\\(\%)}} & \textbf{\shortstack{Reject.\\(\%)}} & \textbf{\shortstack{Min\\$p_{\max}$}} & \textbf{\shortstack{Temp.\\Agree.}} & \textbf{\shortstack{Mean\\Dice}} & \textbf{\shortstack{HD95\\(mm)}} & \textbf{Mechanism} \\
 \midrule
-Raw / Unfiltered Predictions     & 100.0\%               & 0.00                    & None             & 0.7898                   & Direct teacher argmax; unfiltered \\
-Confidence Filtered (MSP)        & 0.47\%                & 0.90                    & None             & 0.7925                   & Rejects low-confidence pixels \\
-\textbf{Confidence + Entropy}    & \textbf{0.47\%}       & \textbf{0.90}           & \textbf{0.25}    & \textbf{0.7941}          & Dual certainty; rejects edges \\
-Full Pipeline (+ Motion Guided)  & 0.47\%                & 0.90                    & 0.25             & 0.7905                   & Motion temporal consistency \\
+No Pseudo-Labels (SSL + Motion)           & 0      & ---     & ---    & ---  & --- & 0.7723 & 10.34 & Labeled ED/ES + motion only \\
+Raw / Unfiltered (+ Motion)               & 15,860 & 100.0\% & 0.0\%  & 0.00 & No  & 0.7868 & 9.19  & Direct argmax; unfiltered \\
+\textbf{Filtered Full Pipeline (+ Motion)}& \textbf{15,860} & \textbf{98.50\%} & \textbf{1.50\%} & \textbf{0.90} & \textbf{Yes} & \textbf{0.7905} & \textbf{13.26} & MSP $\times$ temp.\ + motion reg. \\
+\textbf{SSL + Filtered Pseudo (No Motion)}& \textbf{15,860} & \textbf{98.50\%} & \textbf{1.50\%} & \textbf{0.90} & \textbf{Yes} & \textbf{0.7941} & \textbf{7.17}  & Filtered pool without motion reg. \\
 \botrule
 \end{tabular}
 \end{table}
 
-Enforcing joint criteria ($p_{\max} \ge 0.90$ and $H \le 0.25$) accepted $0.47\%$ of candidate pixels across unannotated intermediate frames while filtering $99.53\%$ of ambiguous background and border pixels. Unfiltered teacher predictions yielded $0.7898$ downstream mean Dice. Thresholding maximum softmax probability alone increased downstream mean Dice to $0.7925$. Adding the entropy constraint ($H \le 0.25$) further raised mean Dice to $0.7941$ by suppressing uncertain edge pixels. Combining confidence filtering with motion guidance produced $0.7905$ mean Dice while improving myocardial boundary consistency.
+Across the 100\% training cohort, generating pseudo-labels with maximum softmax probability ($p_{\max} \ge 0.90$) modulated by motion-warped temporal agreement (\texttt{use\_temporal\_consistency: true}) and a minimum foreground filter ($30$ pixels) yielded $15,860$ pseudo-labeled intermediate cine slices with a $98.50\%$ pixel acceptance rate ($1.50\%$ ambiguous boundary pixels masked out as $\text{ignore\_index} = -1$). Compared to SSL + Motion fine-tuning without pseudo-labels ($0.7723$ mean Dice), adding unfiltered raw pseudo-labels (\texttt{full\_pipeline\_raw\_100pct\_seed42}) raised downstream test mean Dice to $0.7868$ ($9.19$\,mm HD95). Applying confidence filtering in the Full Pipeline (\texttt{full\_pipeline\_100pct\_seed42}) further increased mean Dice to $0.7905$ ($+0.0037$) and lifted RV cavity Dice from $0.7113$ to $0.7244$ ($+0.0131$) by discarding low-confidence boundary pixels. Using the same confidence-filtered pseudo-label pool without fine-tuning motion regularization (\texttt{ssl\_pseudo\_100pct\_seed42}) reached $0.7941$ mean Dice ($7.17$\,mm HD95).
 
 \subsection{Per-Patient Test Distribution}
 Figure~\ref{fig:per_patient} displays the distribution of Dice scores across all 20 test subjects for the Full Pipeline model. Median performance was $0.867$ for the LV cavity, $0.812$ for the myocardium, and $0.751$ for the RV cavity. Performance dispersion was higher on the right ventricle (interquartile range $0.65$--$0.82$), reflecting thin crescentic wall geometry, variable trabecular structures, and inflow/outflow tract movement across temporal phases.

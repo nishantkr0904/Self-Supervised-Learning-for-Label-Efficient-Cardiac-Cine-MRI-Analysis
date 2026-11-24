@@ -83,20 +83,21 @@ def make_fig2_label_efficiency():
 
 def make_fig3_ablation():
     variants = [
-        "A. Baseline\n(Supervised)",
-        "B. +SSL\n(Temporal)",
-        "C. +Motion\n(Warping)",
-        "D. +Pseudo\n(Confidence)",
-        "E. Full\nPipeline"
+        "1. Baseline\n(Supervised)",
+        "2. +SSL\n(Temporal)",
+        "3. +Motion\n(Warping)",
+        "4. +Pseudo\n(Unfiltered)",
+        "5. +Conf Filter\n(Full Ours)",
+        "Alt. SSL+\nFilt. Pseudo"
     ]
     
-    lv = [0.8644, 0.8507, 0.8441, 0.8507, 0.8533]
-    myo = [0.7992, 0.7838, 0.7855, 0.7888, 0.7938]
-    rv = [0.7554, 0.7348, 0.6871, 0.7428, 0.7244]
-    mean_dice = [0.8064, 0.7898, 0.7723, 0.7941, 0.7905]
-    hd95 = [6.23, 8.42, 10.34, 7.17, 13.26]
+    lv = [0.8644, 0.8507, 0.8441, 0.8530, 0.8533, 0.8507]
+    myo = [0.7992, 0.7838, 0.7855, 0.7961, 0.7938, 0.7888]
+    rv = [0.7554, 0.7348, 0.6871, 0.7113, 0.7244, 0.7428]
+    mean_dice = [0.8064, 0.7898, 0.7723, 0.7868, 0.7905, 0.7941]
+    hd95 = [6.23, 8.42, 10.34, 9.19, 13.26, 7.17]
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.2), dpi=300, gridspec_kw={"width_ratios": [2.2, 1]})
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.2, 4.3), dpi=300, gridspec_kw={"width_ratios": [2.2, 1]})
     
     x = np.arange(len(variants))
     w = 0.18
@@ -109,7 +110,7 @@ def make_fig3_ablation():
     ax1.set_ylabel("Dice Similarity Coefficient")
     ax1.set_title("(a) Component Ablation: Per-Class Dice Scores")
     ax1.set_xticks(x)
-    ax1.set_xticklabels(variants)
+    ax1.set_xticklabels(variants, fontsize=8.8)
     ax1.set_ylim(0.60, 0.95)
     ax1.legend(loc="lower left", ncol=2, framealpha=0.9)
     
@@ -118,7 +119,7 @@ def make_fig3_ablation():
     ax2.set_ylabel("95% Hausdorff Distance (mm)")
     ax2.set_title("(b) Boundary Error (HD95)")
     ax2.set_xticks(x)
-    ax2.set_xticklabels(variants, rotation=25)
+    ax2.set_xticklabels(variants, rotation=28, ha="right", fontsize=8.5)
     ax2.set_ylim(0, 16)
     
     for i, v in enumerate(hd95):
