@@ -48,6 +48,16 @@ PRODUCTION_RUN_IDS = [
 
 _RUN_ID_PATTERN = re.compile(r"^full_pipeline(?:_raw)?_(\d+)pct_seed(\d+)$")
 
+# Legacy supervised baseline runs missing embedded `experiment_name` metadata
+# when loaded from their canonical checkpoint directory layout. Not included in
+# PRODUCTION_RUN_IDS so `--all` behavior remains unchanged.
+LEGACY_ALLOWLIST_RUN_IDS = [
+    "supervised_10pct_seed42",
+    "supervised_25pct_seed42",
+    "supervised_50pct_seed42",
+]
+_LEGACY_ALLOWLIST_PATTERN = re.compile(r"^supervised_(10|25|50)pct_seed(42)$")
+
 # Conservative run-ID shape for non-production runs evaluated through an
 # explicit --checkpoint-path. Rejects path traversal and empty IDs; the
 # checkpoint-provenance gate below still binds checkpoint to run.
@@ -70,14 +80,17 @@ def _read_cohort_ids(split_file: Path) -> set:
 
 
 def parse_run_id(run_id: str) -> tuple:
-    """Return (label_fraction, seed) for a production run ID or raise."""
+    """Return (label_fraction, seed) for a production or legacy-allowlisted run ID or raise."""
     match = _RUN_ID_PATTERN.match(run_id)
-    if match is None or run_id not in PRODUCTION_RUN_IDS:
-        raise ValueError(
-            f"Refusing to evaluate unknown run '{run_id}'. "
-            f"Allowed run IDs: {PRODUCTION_RUN_IDS}"
-        )
-    return int(match.group(1)), int(match.group(2))
+    if match is not None and run_id in PRODUCTION_RUN_IDS:
+        return int(match.group(1)), int(match.group(2))
+    legacy_match = _LEGACY_ALLOWLIST_PATTERN.match(run_id)
+    if legacy_match is not None and run_id in LEGACY_ALLOWLIST_RUN_IDS:
+        return int(legacy_match.group(1)), int(legacy_match.group(2))
+    raise ValueError(
+        f"Refusing to evaluate unknown run '{run_id}'. "
+        f"Allowed run IDs: {PRODUCTION_RUN_IDS + LEGACY_ALLOWLIST_RUN_IDS}"
+    )
 
 
 def validate_safe_run_id(run_id: str) -> str:
@@ -136,9 +149,10 @@ def resolve_fraction_seed(
     Production run IDs parse as before. Any other run ID requires both
     values explicitly so the record is never silently mislabeled.
     """
-    match = _RUN_ID_PATTERN.match(run_id)
-    if match is not None and run_id in PRODUCTION_RUN_IDS:
-        return int(match.group(1)), int(match.group(2))
+    try:
+        return parse_run_id(run_id)
+    except ValueError:
+        pass
     if label_fraction_override is None or seed_override is None:
         raise ValueError(
             f"Run ID '{run_id}' is not a known production run; pass explicit "
@@ -188,9 +202,10 @@ def evaluate_run(
             run_id, label_fraction_override, seed_override
         )
 
+    checkpoint_dir_cfg = log_cfg.get("checkpoint_dir", "checkpoints/experiments")
     checkpoint_path = resolve_checkpoint(
         run_id,
-        log_cfg.get("checkpoint_dir", "checkpoints/experiments"),
+        checkpoint_dir_cfg,
         checkpoint_path_override,
     )
     test_split = data_cfg.get("test_split", "data/splits/test_patients.txt")
@@ -198,7 +213,25 @@ def evaluate_run(
     model = build_model_from_config(config, device)
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     provenance = checkpoint.get("experiment_name")
-    if provenance is None or str(provenance) != run_id:
+    canonical_suffix = ("checkpoints", "experiments", run_id, f"{run_id}_best.pth")
+    configured_canonical = (Path(checkpoint_dir_cfg) / run_id / f"{run_id}_best.pth").resolve()
+    matches_canonical_layout = (
+        checkpoint_path.resolve() == configured_canonical
+        or checkpoint_path.resolve().parts[-4:] == canonical_suffix
+    )
+    if provenance is None:
+        if run_id in LEGACY_ALLOWLIST_RUN_IDS and matches_canonical_layout:
+            print(
+                f"Note: Allowing legacy checkpoint without 'experiment_name' "
+                f"for allowlisted run '{run_id}': {checkpoint_path}"
+            )
+        else:
+            raise ValueError(
+                f"Refusing to evaluate {checkpoint_path}: checkpoint provenance "
+                f"'{provenance}' does not match requested run '{run_id}'. "
+                "Only the run's own *_best.pth checkpoint may be evaluated."
+            )
+    elif str(provenance) != run_id:
         raise ValueError(
             f"Refusing to evaluate {checkpoint_path}: checkpoint provenance "
             f"'{provenance}' does not match requested run '{run_id}'. "

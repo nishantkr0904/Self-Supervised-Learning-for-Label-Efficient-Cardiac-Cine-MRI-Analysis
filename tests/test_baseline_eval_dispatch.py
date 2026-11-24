@@ -30,10 +30,17 @@ from src.baseline_models import build_baseline_model
 class TestRunIdValidation(unittest.TestCase):
     def test_parse_run_id_legacy_unchanged(self):
         self.assertEqual(ev.parse_run_id("full_pipeline_10pct_seed42"), (10, 42))
+        self.assertEqual(ev.parse_run_id("supervised_10pct_seed42"), (10, 42))
+        self.assertEqual(ev.parse_run_id("supervised_25pct_seed42"), (25, 42))
+        self.assertEqual(ev.parse_run_id("supervised_50pct_seed42"), (50, 42))
+        self.assertTrue(
+            all(r.startswith("full_pipeline") for r in ev.PRODUCTION_RUN_IDS)
+        )
         for bad in [
             "nope",
             "full_pipeline_10pct_seed42_smoke",
             "unet_100pct_seed42",
+            "supervised_100pct_seed42",
         ]:
             with self.assertRaises(ValueError, msg=bad):
                 ev.parse_run_id(bad)
@@ -239,6 +246,66 @@ class TestSyntheticEndToEnd(unittest.TestCase):
                 with self.assertRaises(FileNotFoundError):
                     ev.evaluate_run("full_pipeline_10pct_seed42", config,
                                     device)
+            finally:
+                ev.CANONICAL_TEST_SPLIT = prev
+
+    def test_legacy_supervised_allowlist_and_provenance(self):
+        prev = ev.CANONICAL_TEST_SPLIT
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp, proc, split, _, _, config, model = self._make_env(tmp)
+            ev.CANONICAL_TEST_SPLIT = split
+            try:
+                device = torch.device("cpu")
+                legacy_id = "supervised_25pct_seed42"
+                ckpt_dir = Path(config["logging"]["checkpoint_dir"]) / legacy_id
+                ckpt_dir.mkdir(parents=True, exist_ok=True)
+                ckpt_file = ckpt_dir / f"{legacy_id}_best.pth"
+
+                # 1. Missing experiment_name at canonical layout -> allowed with note
+                torch.save({"model_state_dict": model.state_dict()}, ckpt_file)
+                result = ev.evaluate_run(
+                    legacy_id,
+                    config,
+                    device,
+                    batch_size=2,
+                    processed_dir_override=str(proc),
+                )
+                self.assertEqual(result["run_id"], legacy_id)
+                self.assertEqual(result["label_fraction"], 25)
+                self.assertEqual(result["seed"], 42)
+                self.assertTrue(
+                    (Path(tmp) / "results" / legacy_id / "test_metrics.json").exists()
+                )
+
+                # 2. Missing experiment_name outside canonical layout -> refused
+                arbitrary = Path(tmp) / "arbitrary_best.pth"
+                torch.save({"model_state_dict": model.state_dict()}, arbitrary)
+                with self.assertRaises(ValueError):
+                    ev.evaluate_run(
+                        legacy_id,
+                        config,
+                        device,
+                        batch_size=2,
+                        processed_dir_override=str(proc),
+                        checkpoint_path_override=str(arbitrary),
+                    )
+
+                # 3. Mismatched experiment_name even on allowlisted run -> refused
+                torch.save(
+                    {
+                        "model_state_dict": model.state_dict(),
+                        "experiment_name": "wrong_run",
+                    },
+                    ckpt_file,
+                )
+                with self.assertRaises(ValueError):
+                    ev.evaluate_run(
+                        legacy_id,
+                        config,
+                        device,
+                        batch_size=2,
+                        processed_dir_override=str(proc),
+                    )
             finally:
                 ev.CANONICAL_TEST_SPLIT = prev
 
