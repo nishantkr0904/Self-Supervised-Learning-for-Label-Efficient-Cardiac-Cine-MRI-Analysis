@@ -161,7 +161,14 @@ Test Set (Isolated)      & 20                & 398                  & 20\%      
 \end{tabular}
 \end{table}
 
-To prevent data leakage, partitions are assigned strictly at the patient level as reported in Table~\ref{tab:splits}. Slices or temporal frames belonging to a single subject never appear across training, validation, or test sets. Each 4D cine volume undergoes volume-level z-score normalization ($I_{\text{norm}} = (I - \mu_V) / (\sigma_V + \epsilon)$, $\epsilon = 10^{-8}$), and 2D slices are resampled to a target in-plane spacing of $(1.5, 1.5)\,\text{mm}^2$ and center-cropped or zero-padded to $256 \times 256$ pixels (\texttt{src/preprocess.py}).
+To prevent data leakage, partitions are assigned strictly at the patient level as reported in Table~\ref{tab:splits}. Slices or temporal frames belonging to a single subject never appear across training, validation, or test sets. Each 4D cine volume undergoes volume-level z-score normalization ($I_{\text{norm}} = (I - \mu_V) / (\sigma_V + \epsilon)$, $\epsilon = 10^{-8}$), and 2D slices are resampled to a target in-plane spacing of $(1.5, 1.5)\,\text{mm}^2$ and center-cropped or zero-padded to $256 \times 256$ pixels (\texttt{src/preprocess.py}). Figure~\ref{fig:cine_motion} illustrates a representative preprocessed mid-ventricular cine sequence from ED through ES alongside inter-frame intensity changes localized around the contracting myocardium.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.96\linewidth]{results/figures/required/fig_cine_motion.png}
+\caption{Preprocessed ACDC cardiac cine contraction sequence (\texttt{patient084}, slice 06) spanning Frame 01 (ED) through Frame 10 (ES) alongside pixelwise absolute intensity differences $|I_t - I_{\text{ref}}|$ showing motion concentrated along the LV, myocardium, and RV walls.}
+\label{fig:cine_motion}
+\end{figure*}
 
 \begin{figure*}[!t]
 \centering
@@ -268,7 +275,14 @@ During downstream fine-tuning (\texttt{src/experiment\_runner.py}), the pretrain
 \mathcal{L}_{\text{motion}}^{\text{ft}} = \frac{1}{C H W} \bigl\| \mathcal{W}\bigl(P_t, \phi_{t \to t+1}\bigr) - P_{t+1} \bigr\|_2^2
 \label{eq:loss_motion_ft}
 \end{equation}
-weighted by $\lambda_{\text{motion}} = 0.1$ (\texttt{configs/experiments.yaml}), and (ii) scoring inter-frame probability agreement for offline pseudo-label filtering.
+weighted by $\lambda_{\text{motion}} = 0.1$ (\texttt{configs/experiments.yaml}), and (ii) scoring inter-frame probability agreement for offline pseudo-label filtering. Figure~\ref{fig:motion_flow} visualizes an adjacent-frame displacement field predicted by the trained \texttt{MotionEstimator}, reducing mean photometric $\ell_1$ error from $0.0510$ (raw) to $0.0309$ after warping.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.96\linewidth]{results/figures/required/fig_motion_flow.png}
+\caption{Trained \texttt{MotionEstimator} (\texttt{SimpleFlowNet}) visualization on an adjacent training pair (\texttt{patient001}, slice 00, $t=4 \to 5$). Warping frame $I_t$ with estimated displacement field $\phi_{t \to t+1}$ (maximum displacement $3.54$\,px) reduces mean photometric $\ell_1$ residual from $0.0510$ (unwarped) to $0.0309$.}
+\label{fig:motion_flow}
+\end{figure*}
 
 \subsection{Semi-Supervised Fine-Tuning and Offline Pseudo-Label Filtering}
 For downstream segmentation (\texttt{SegmentationUNet} in \texttt{src/segmentation\_model.py}; fine-tuned in \texttt{src/experiment\_runner.py}), the SSL-pretrained encoder weights initialize $E_\theta$, which connects to a symmetric 4-stage \texttt{UNetDecoder} via three lateral skip connections. The encoder is frozen for the first 5 warmup epochs and then updated at a $10\times$ lower learning rate ($\eta_{\text{enc}} = 10^{-5}$) than the decoder ($\eta_{\text{dec}} = 10^{-4}$).
@@ -417,7 +431,21 @@ Table~\ref{tab:class_eff} reports per-structure performance across label fractio
 \end{tabular}
 \end{table}
 
-The experimental results show that the proposed framework produces its largest gains when labeled training data is scarce. At 10\% labels (7 training patients, 140 slices), the proposed model obtained $0.6786$ mean Dice ($32.52$\,mm HD95), compared to $0.5807$ ($50.78$\,mm HD95) for the supervised U-Net baseline on the canonical 20-patient test set, representing an absolute improvement of $+0.0979$ ($+16.9\%$ relative). At 25\% labels (17 patients, 340 slices), the model reached $0.7316$ mean Dice ($22.24$\,mm HD95) versus $0.6608$ ($35.50$\,mm HD95) for the baseline ($+0.0708$ absolute, $+10.7\%$ relative). At 50\% labels (35 patients, 700 slices), performance rose to $0.7547$ ($17.62$\,mm HD95), outperforming the supervised baseline at $0.7293$ ($22.74$\,mm HD95; $+0.0254$ absolute, $+3.5\%$ relative), while at 100\% labels the Full Pipeline reached $0.7905$ versus $0.8064$. Under 10\% labels, LV cavity segmentation achieved $0.7883$ Dice and myocardium reached $0.6814$ Dice, whereas RV cavity segmentation required larger label fractions to reach $0.7244$ Dice at 100\% labels.
+The experimental results show that the proposed framework produces its largest gains when labeled training data is scarce. At 10\% labels (7 training patients, 140 slices), the proposed model obtained $0.6786$ mean Dice ($32.52$\,mm HD95), compared to $0.5807$ ($50.78$\,mm HD95) for the supervised U-Net baseline on the canonical 20-patient test set, representing an absolute improvement of $+0.0979$ ($+16.9\%$ relative). At 25\% labels (17 patients, 340 slices), the model reached $0.7316$ mean Dice ($22.24$\,mm HD95) versus $0.6608$ ($35.50$\,mm HD95) for the baseline ($+0.0708$ absolute, $+10.7\%$ relative). At 50\% labels (35 patients, 700 slices), performance rose to $0.7547$ ($17.62$\,mm HD95), outperforming the supervised baseline at $0.7293$ ($22.74$\,mm HD95; $+0.0254$ absolute, $+3.5\%$ relative), while at 100\% labels the Full Pipeline reached $0.7905$ versus $0.8064$. Notably, the 25\% Full Pipeline ($0.7316$) retains $90.7\%$ of the 100\% Supervised U-Net ($0.8064$) while surpassing the 50\% Supervised baseline ($0.7293$), the 50\% Full Pipeline ($0.7547$) retains $93.6\%$, and the 10\% Full Pipeline ($0.6786$) already exceeds the 25\% Supervised baseline ($0.6608$). Across individual structures under label scarcity, improvements concentrate in difficult compartments: relative to matching supervised baselines, RV Dice improves by $+0.1380$ ($+32.2\%$: $0.5661$ vs.\ $0.4281$) at 10\%, $+0.1058$ ($+19.9\%$: $0.6364$ vs.\ $0.5306$) at 25\%, and $+0.0286$ ($+4.5\%$: $0.6584$ vs.\ $0.6299$) at 50\%, with both RV and MYO ($+12.6\%$, $+9.3\%$, and $+3.5\%$ relative) outpacing LV gains ($+11.2\%$, $+5.6\%$, and $+2.7\%$). Figures~\ref{fig:baseline_vs_ssl} and~\ref{fig:training_curves} illustrate qualitative test predictions and fine-tuning optimization trajectories across label budgets.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.94\linewidth]{results/figures/qualitative/fig_baseline_vs_ssl.png}
+\caption{Qualitative comparison between Supervised U-Net and Full Pipeline (Ours) on test subjects (\texttt{patient007} and \texttt{patient049}) under 10\% and 100\% training labels. At 10\% labels, the Full Pipeline suppresses extra-cardiac false-positive islands seen in the supervised baseline (\texttt{patient007}: $0.894$ vs.\ $0.771$ slice Dice).}
+\label{fig:baseline_vs_ssl}
+\end{figure*}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.92\linewidth]{results/figures/required/fig_training_curves.png}
+\caption{Fine-tuning Dice + CE loss (left) and validation Mean Dice curves (right) recorded across training epochs for \texttt{full\_pipeline\_100pct\_seed42}, \texttt{full\_pipeline\_10pct\_seed42}, and \texttt{supervised\_100pct\_seed42} before early stopping.}
+\label{fig:training_curves}
+\end{figure*}
 
 \subsection{Component-Wise Ablation Study}
 To analyze individual contributions of the framework components along the target ablation protocol, six configurations were evaluated on the 20-patient test cohort at 100\% labels (Table~\ref{tab:ablation} and Figure~\ref{fig:ablation}).
@@ -475,7 +503,14 @@ Raw / Unfiltered (+ Motion)               & 15,860 & 100.0\% & 0.0\%  & 0.00 & N
 \end{tabular}
 \end{table}
 
-Across the 100\% training cohort, generating pseudo-labels with maximum softmax probability ($p_{\max} \ge 0.90$) modulated by motion-warped temporal agreement (\texttt{use\_temporal\_consistency: true}) and a minimum foreground filter ($30$ pixels) yielded $15,860$ pseudo-labeled intermediate cine slices with a $98.50\%$ pixel acceptance rate ($1.50\%$ ambiguous boundary pixels masked out as $\text{ignore\_index} = -1$). Compared to SSL + Motion fine-tuning without pseudo-labels ($0.7723$ mean Dice), adding unfiltered raw pseudo-labels (\texttt{full\_pipeline\_raw\_100pct\_seed42}) raised downstream test mean Dice to $0.7868$ ($9.19$\,mm HD95). Applying confidence filtering in the Full Pipeline (\texttt{full\_pipeline\_100pct\_seed42}) further increased mean Dice to $0.7905$ ($+0.0037$) and lifted RV cavity Dice from $0.7113$ to $0.7244$ ($+0.0131$) by discarding low-confidence boundary pixels. Using the same confidence-filtered pseudo-label pool without fine-tuning motion regularization (\texttt{ssl\_pseudo\_100pct\_seed42}) reached $0.7941$ mean Dice ($7.17$\,mm HD95).
+Across the 100\% training cohort, generating pseudo-labels with maximum softmax probability ($p_{\max} \ge 0.90$) modulated by motion-warped temporal agreement (\texttt{use\_temporal\_consistency: true}) and a minimum foreground filter ($30$ pixels) yielded $15,860$ pseudo-labeled intermediate cine slices with a $98.50\%$ pixel acceptance rate ($1.50\%$ ambiguous boundary pixels masked out as $\text{ignore\_index} = -1$). Compared to SSL + Motion fine-tuning without pseudo-labels ($0.7723$ mean Dice), adding unfiltered raw pseudo-labels (\texttt{full\_pipeline\_raw\_100pct\_seed42}) raised downstream test mean Dice to $0.7868$ ($9.19$\,mm HD95). Applying confidence filtering in the Full Pipeline (\texttt{full\_pipeline\_100pct\_seed42}) further increased mean Dice to $0.7905$ ($+0.0037$) and lifted RV cavity Dice from $0.7113$ to $0.7244$ ($+0.0131$) by discarding low-confidence boundary pixels. Using the same confidence-filtered pseudo-label pool without fine-tuning motion regularization (\texttt{ssl\_pseudo\_100pct\_seed42}) reached $0.7941$ mean Dice ($7.17$\,mm HD95). Figure~\ref{fig:pseudo_filtering} illustrates how multiplicative confidence $\times$ temporal-agreement filtering masks uncertain epicardial, endocardial, and RV borders ($\text{ignore\_index} = -1$) on an unlabeled intermediate cine frame.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.96\linewidth]{results/figures/required/fig_pseudo_filtering.png}
+\caption{Offline pseudo-label filtering on an unlabeled intermediate cine slice (\texttt{patient003}, frame 28, slice 02). Unfiltered teacher argmax predictions (second panel) exhibit lower confidence $\times$ temporal agreement along anatomical boundaries (third panel); thresholding at $\tau = 0.90$ retains $99.49\%$ confident pixels while masking $0.51\%$ uncertain border pixels as $\text{ignore\_index} = -1$ (light gray, fourth panel).}
+\label{fig:pseudo_filtering}
+\end{figure*}
 
 \subsection{Per-Patient Test Distribution}
 Figure~\ref{fig:per_patient} displays the distribution of Dice scores across all 20 test subjects for the Full Pipeline model. Median performance was $0.867$ for the LV cavity, $0.812$ for the myocardium, and $0.751$ for the RV cavity. Performance dispersion was higher on the right ventricle (interquartile range $0.65$--$0.82$), reflecting thin crescentic wall geometry, variable trabecular structures, and inflow/outflow tract movement across temporal phases.
@@ -575,11 +610,18 @@ A practical consideration in clinical segmentation is the trade-off between mode
 MedSAM demonstrated poor adaptation to dynamic cardiac cine series, obtaining $0.1790$ zero-shot and $0.4897$ when fine-tuned. Foundation models trained on large collections of static 2D medical images lack mechanisms to track cardiac wall deformation across time. When prompted with anatomical bounding boxes, MedSAM frequently merged ventricular blood pools with adjacent papillary muscles. Fine-tuning the mask decoder improved overlap to $0.4897$, but performance remained substantially below all task-specific networks, particularly on the thin right ventricular wall ($0.4090$ Dice).
 
 \subsection{Error Distribution and Failure Modes}
-Inspection of outlier cases (such as \texttt{patient094} in the test split) indicates two primary sources of error:
+Inspection of worst-performing test slices (Figure~\ref{fig:failure_cases}, including \texttt{patient077}, \texttt{patient094}, and \texttt{patient084}) indicates two primary sources of error:
 \begin{enumerate}
-    \item Basal slices near the valve planes, where through-plane cardiac motion during systole causes partial volume effects; and
-    \item Extreme apical slices, where the ventricular lumen narrows to a small diameter and optical flow estimation degrades, occasionally introducing spurious boundary components that penalize the 95\% Hausdorff distance.
+    \item Basal slices near the valve planes (e.g., \texttt{patient094} and \texttt{patient084}, slice 00), where through-plane cardiac motion during systole causes partial volume effects; and
+    \item Extreme apical slices (e.g., \texttt{patient077}, slice 07), where the ventricular lumen narrows to a small diameter and optical flow estimation degrades, occasionally omitting tiny foreground regions or introducing spurious boundary components that penalize the 95\% Hausdorff distance.
 \end{enumerate}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.92\linewidth]{results/figures/qualitative/fig_failure_cases.png}
+\caption{Worst-Dice and highest-HD95 outlier slices from \texttt{full\_pipeline\_100pct\_seed42} on the canonical 20-patient test set, highlighting false negatives (cyan) and false positives (red) on an extreme apical slice (\texttt{patient077}, slice 07) and basal valve-plane slices (\texttt{patient094} and \texttt{patient084}, slice 00).}
+\label{fig:failure_cases}
+\end{figure*}
 
 % ==============================================================================
 \section{Limitations and Threats to Validity}\label{sec:limitations}
