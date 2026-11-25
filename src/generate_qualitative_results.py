@@ -50,9 +50,13 @@ from src.metrics import compute_metrics_batch, compute_patient_level_metrics
 
 CANONICAL_TEST_SPLIT = _EVAL_CANONICAL_TEST_SPLIT
 
-LEGACY_SUPERVISED_QUALITATIVE_ALLOWLIST = tuple(LEGACY_ALLOWLIST_RUN_IDS) + (
-    "supervised_100pct_seed42",
+LEGACY_QUALITATIVE_ALLOWLIST = (
+    tuple(PRODUCTION_RUN_IDS)
+    + tuple(LEGACY_ALLOWLIST_RUN_IDS)
+    + ("supervised_100pct_seed42",)
 )
+# Keep backward-compatible alias for any external callers/tests.
+LEGACY_SUPERVISED_QUALITATIVE_ALLOWLIST = LEGACY_QUALITATIVE_ALLOWLIST
 
 # Discrete mask colors: 0 background (black), 1 LV red, 2 myocardium green, 3 RV blue.
 MASK_CMAP = ListedColormap(["black", "#e41a1c", "#4daf4a", "#377eb8"])
@@ -92,7 +96,7 @@ def load_production_model(
         or checkpoint_path.resolve().parts[-4:] == canonical_suffix
     )
     if provenance is None:
-        if run_id in LEGACY_SUPERVISED_QUALITATIVE_ALLOWLIST and matches_canonical_layout:
+        if run_id in LEGACY_QUALITATIVE_ALLOWLIST and matches_canonical_layout:
             print(
                 f"Note: Allowing legacy checkpoint without 'experiment_name' "
                 f"for allowlisted run '{run_id}': {checkpoint_path}"

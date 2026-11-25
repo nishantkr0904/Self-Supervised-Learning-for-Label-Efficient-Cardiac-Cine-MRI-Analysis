@@ -137,11 +137,11 @@ def _build_synthetic_workspace(root: Path) -> dict:
     (processed_dir / "dataset_index.json").write_text(json.dumps(index_entries, indent=2), encoding="utf-8")
     (pseudo_dir / "pseudo_label_index.json").write_text(json.dumps(pseudo_records, indent=2), encoding="utf-8")
 
-    # Save checkpoints: legacy supervised (no experiment_name) + tagged checkpoints + non-allowlisted bad run.
+    # Save checkpoints: legacy supervised & full_pipeline (no experiment_name) + tagged + bad run.
     runs = [
         ("supervised_10pct_seed42", False, True),
         ("supervised_100pct_seed42", True, True),
-        ("full_pipeline_10pct_seed42", True, True),
+        ("full_pipeline_10pct_seed42", False, True),
         ("full_pipeline_100pct_seed42", True, True),
         ("patient999_untrusted", False, False),
     ]
@@ -283,6 +283,26 @@ class RequiredFiguresTests(unittest.TestCase):
                     torch.device("cpu"),
                     checkpoint_dir=str(env["ckpt_dir"]),
                 )
+
+            # Mismatched experiment_name must still fail closed even for an allowlisted run.
+            mismatch_ckpt = (
+                env["ckpt_dir"] / "full_pipeline_10pct_seed42" / "full_pipeline_10pct_seed42_best.pth"
+            )
+            orig_payload = torch.load(mismatch_ckpt, map_location="cpu", weights_only=False)
+            try:
+                torch.save(
+                    {"model_state_dict": orig_payload["model_state_dict"], "experiment_name": "wrong_run"},
+                    mismatch_ckpt,
+                )
+                with self.assertRaises(ValueError):
+                    qr.load_production_model(
+                        "full_pipeline_10pct_seed42",
+                        env["exp_cfg"],
+                        torch.device("cpu"),
+                        checkpoint_dir=str(env["ckpt_dir"]),
+                    )
+            finally:
+                torch.save(orig_payload, mismatch_ckpt)
 
             argv = [
                 "generate_qualitative_results.py",
