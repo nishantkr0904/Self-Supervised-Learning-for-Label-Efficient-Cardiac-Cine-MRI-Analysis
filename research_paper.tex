@@ -320,7 +320,10 @@ and the 95\% Hausdorff Distance (HD95) for boundary error:
 \text{HD95}(A, B) = \max \bigl\{ P_{95\%} \min_{b \in B} d(a,b), \; P_{95\%} \min_{a \in A} d(b,a) \bigr\}
 \label{eq:hd95}
 \end{equation}
-Both metrics were computed per slice, averaged across the short-axis stack for each patient, and reported as the unweighted mean across the 20 independent test subjects (398 test slices).
+Both metrics were computed per slice, averaged across the short-axis stack for each patient, and reported as the unweighted mean and standard deviation across the 20 independent test subjects (398 test slices).
+
+\paragraph{Statistical Analysis.}
+All inferential comparisons (\texttt{src/statistical\_analysis.py}) operate on matched patient-level vectors ($n = 20$ canonical test subjects) using two-sided paired Wilcoxon signed-rank tests (\texttt{scipy.stats.wilcoxon}, \texttt{zero\_method="wilcox"}) at significance threshold $\alpha = 0.05$. To control family-wise error across multiple tests, step-down Holm--Bonferroni adjusted $p$-values ($p_{\text{Holm}}$) are computed independently within each comparison family per metric: (i) label efficiency across 10\%, 25\%, and 50\% labels ($m = 3$), (ii) sequential 100\%-label ablations ($m = 4$), (iii) Full Pipeline clean versus test-time perturbations ($m = 4$), and (iv) Full Pipeline versus the handoff \texttt{supervised\_100pct\_seed42} checkpoint across all five robustness conditions ($m = 5$; used for paired 100\% robustness testing because the historical $0.8064$ run lacks an archived per-patient JSON).
 
 % ==============================================================================
 \section{Results}\label{sec:results}
@@ -508,6 +511,51 @@ Intensity Scale ($1.1\times$)     & 0.7685 & 22.87 & \textbf{0.7885} & \textbf{1
 \begin{tablenotes}
 \scriptsize
 \item $^*$Paired perturbation testing uses the handoff \texttt{supervised\_100pct\_seed42} checkpoint ($0.7692$ clean Mean Dice), distinct from the $0.8064$ canonical baseline run in Table~\ref{tab:main_results}.
+\end{tablenotes}
+\end{table}
+
+\subsection{Paired Statistical Analysis}
+To evaluate whether observed performance differences exceed inter-patient dispersion ($n = 20$ matched test subjects), Table~\ref{tab:stats} summarizes two-sided paired Wilcoxon signed-rank tests with family-wise Holm--Bonferroni correction across all four experimental comparison families (full mean $\pm$ std and $W$-statistics are archived in \texttt{results/tables/statistical\_tests.md}). In the limited-label regime (10\%, 25\%, and 50\% annotations), all improvements achieved by the Full Pipeline over the Supervised U-Net baseline remain statistically significant after Holm--Bonferroni adjustment for both Mean Dice ($p_{\text{Holm}} \le 0.0010$) and Mean HD95 ($p_{\text{Holm}} \le 0.0296$). Conversely, at 100\% labels, none of the component-ablation Mean Dice differences reach corrected significance ($p_{\text{Holm}} \ge 0.0769$): specifically, the small $+0.0037$ Mean Dice increment from confidence filtering ($0.7905$ vs.\ $0.7868$, $p_{\text{raw}} = 0.3884$, $p_{\text{Holm}} = 0.4049$) and the $+0.0036$ Mean Dice edge of motion-free \texttt{ssl\_pseudo} ($0.7941$ vs.\ $0.7905$, $p_{\text{raw}} = 0.2024$, $p_{\text{Holm}} = 0.4049$) are statistically non-significant relative to $\sim 0.10$ patient-level variance, whereas the accompanying apical HD95 increase ($+4.08$\,mm, $p_{\text{Holm}} = 0.0012$) and motion-free HD95 reduction ($-6.09$\,mm, $p_{\text{Holm}} = 0.0002$) are statistically significant. Under test-time perturbations, Full Pipeline incurs no statistically significant degradation relative to clean inference on Mean Dice ($p_{\text{Holm}} \ge 0.1449$) or Mean HD95 ($p_{\text{Holm}} \ge 0.5309$), while consistently exceeding the handoff supervised checkpoint across all five conditions ($p_{\text{Holm}} \le 0.0153$ for Dice, $p_{\text{Holm}} \le 0.0107$ for HD95).
+
+\begin{table}[htbp]
+\caption{Paired Two-Sided Wilcoxon Signed-Rank Tests with Holm--Bonferroni Correction ($n=20$ Test Patients, $\alpha=0.05$; Paired $\Delta = \text{A} - \text{B}$)}%
+\label{tab:stats}
+\renewcommand{\arraystretch}{1.12}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{1.3pt}
+\begin{tabular}{@{} l rrr rrr @{}}
+\toprule
+\textbf{Comparison (A vs.\ B)} & \textbf{Dice $\Delta$} & \textbf{Raw $p$} & \textbf{Holm $p$} & \textbf{HD95 $\Delta$} & \textbf{Raw $p$} & \textbf{Holm $p$} \\
+\midrule
+\multicolumn{7}{@{}l}{\textit{Family 1: Label Efficiency ($m=3$)}} \\
+Full (10\%) vs.\ Sup.\ (10\%)        & $+0.0979$ & $3.81\text{e-}6$ & $\mathbf{7.63\text{e-}6}^*$ & $-18.26$ & $0.0014$ & $\mathbf{0.0043}^*$ \\
+Full (25\%) vs.\ Sup.\ (25\%)        & $+0.0708$ & $1.91\text{e-}6$ & $\mathbf{5.72\text{e-}6}^*$ & $-13.26$ & $0.0073$ & $\mathbf{0.0146}^*$ \\
+Full (50\%) vs.\ Sup.\ (50\%)        & $+0.0254$ & $0.0010$         & $\mathbf{0.0010}^*$         & $-5.12$  & $0.0296$ & $\mathbf{0.0296}^*$ \\
+\midrule
+\multicolumn{7}{@{}l}{\textit{Family 2: Component Ablation at 100\% Labels ($m=4$)}} \\
++Motion vs.\ +SSL                    & $-0.0175$ & $0.0192$         & $0.0769$                    & $+1.92$  & $0.0192$ & $\mathbf{0.0385}^*$ \\
++Pseudo Raw vs.\ +Motion             & $+0.0145$ & $0.0266$         & $0.0799$                    & $-1.16$  & $0.1429$ & $0.1429$            \\
++Conf Filter vs.\ +Pseudo Raw        & $+0.0037$ & $0.3884$         & $0.4049$                    & $+4.08$  & $0.0004$ & $\mathbf{0.0012}^*$ \\
+Alt.\ SSL+Filt vs.\ Full             & $+0.0036$ & $0.2024$         & $0.4049$                    & $-6.09$  & $4.77\text{e-}5$ & $\mathbf{0.0002}^*$ \\
+\midrule
+\multicolumn{7}{@{}l}{\textit{Family 3: Full Pipeline Perturbation vs.\ Clean ($m=4$)}} \\
+Noise ($\sigma=0.05$) vs.\ Clean     & $-0.0091$ & $0.0759$         & $0.2276$                    & $+3.34$  & $0.9854$ & $1.0000$            \\
+Noise ($\sigma=0.10$) vs.\ Clean     & $-0.0120$ & $0.0362$         & $0.1449$                    & $+0.47$  & $0.4524$ & $1.0000$            \\
+Scale ($0.9\times$) vs.\ Clean       & $+0.0010$ & $0.9854$         & $1.0000$                    & $-0.80$  & $0.6477$ & $1.0000$            \\
+Scale ($1.1\times$) vs.\ Clean       & $-0.0020$ & $0.5706$         & $1.0000$                    & $+0.68$  & $0.1327$ & $0.5309$            \\
+\midrule
+\multicolumn{7}{@{}l}{\textit{Family 4: Robustness Full vs.\ Handoff Sup.\ ($m=5$)}} \\
+Clean: Full vs.\ Sup.\               & $+0.0213$ & $0.0009$         & $\mathbf{0.0034}^*$         & $-8.72$  & $0.0002$ & $\mathbf{0.0005}^*$ \\
+Noise ($0.05$): Full vs.\ Sup.\      & $+0.0122$ & $0.0153$         & $\mathbf{0.0153}^*$         & $-3.72$  & $0.0107$ & $\mathbf{0.0107}^*$ \\
+Noise ($0.10$): Full vs.\ Sup.\      & $+0.0269$ & $0.0017$         & $\mathbf{0.0051}^*$         & $-8.18$  & $0.0001$ & $\mathbf{0.0005}^*$ \\
+Scale ($0.9\times$): Full vs.\ Sup.\ & $+0.0207$ & $0.0017$         & $\mathbf{0.0051}^*$         & $-8.28$  & $0.0001$ & $\mathbf{0.0005}^*$ \\
+Scale ($1.1\times$): Full vs.\ Sup.\ & $+0.0200$ & $0.0003$         & $\mathbf{0.0013}^*$         & $-8.93$  & $0.0001$ & $\mathbf{0.0005}^*$ \\
+\botrule
+\end{tabular}
+\begin{tablenotes}
+\scriptsize
+\item Bold values marked with $^*$ are statistically significant ($p_{\text{Holm}} < 0.05$ within each family per metric). HD95 $\Delta$ is in mm (negative indicates lower boundary error). Full mean $\pm$ std and $W$-statistics are stored in \texttt{results/tables/statistical\_tests.\{csv,md,json\}}.
 \end{tablenotes}
 \end{table}
 
